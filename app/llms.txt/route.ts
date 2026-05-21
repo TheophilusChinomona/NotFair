@@ -80,6 +80,9 @@ Contact: ${SUPPORT_EMAIL}
     "3. Open your AI client and ask: \"Audit my Google Ads account and tell me the top three wasted-spend issues.\"",
     "",
     "For client-specific setup snippets, see the integration pages linked above.",
+    `Expanded LLM corpus: ${absoluteUrl("/llms-full.txt")}`,
+    `Claude connector review packet: ${absoluteUrl("/claude-connector-review-packet.txt")}`,
+    `Suggested MCP registry metadata: ${absoluteUrl("/mcp-registry-listings.json")}`,
   ]);
 
   const slugs = Object.values(integrations).map((i) => i.slug);

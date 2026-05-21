@@ -1,0 +1,14 @@
+{
+  "name": "notfair-google-ads",
+  "version": "0.1.0",
+  "description": "Google Ads MCP workflows for Claude Code. Connect NotFair, audit wasted spend, propose optimizations, and execute only approval-gated writes.",
+  "author": {
+    "name": "NotFair",
+    "url": "https://notfair.co"
+  },
+  "skills": [
+    "./google-ads/audit",
+    "./google-ads/optimize",
+    "./google-ads/safe-write"
+  ]
+}
