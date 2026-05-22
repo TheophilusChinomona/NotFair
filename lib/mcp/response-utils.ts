@@ -5,7 +5,13 @@
  * to their previous in-factory definitions.
  */
 
-const SCHEMA_METHODS = new Set(["initialize", "tools/list", "notifications/initialized"]);
+const SCHEMA_METHODS = new Set([
+  "initialize",
+  "tools/list",
+  "resources/list",
+  "resources/read",
+  "notifications/initialized",
+]);
 
 /**
  * Build a 401 response with the RFC 6750 + MCP-spec `WWW-Authenticate` header
