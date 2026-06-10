@@ -14,7 +14,7 @@
  *     access tokens / authorization codes that hang off those sessions or
  *     ad-platform connections.
  *   - accountId-linked rows for every customer in the caller's connection:
- *     goals, performance_snapshots, change_interventions (+ children),
+ *     goals, campaign_benchmark_30d_snapshots, change_interventions (+ children),
  *     accounts (snapshot table), plus any operations / audit rows whose
  *     userId was null at write time.
  *   - Session cookies: legacy app cookies (adsagent_*) AND Supabase sb-*
@@ -185,7 +185,7 @@ async function countAll(userId: string, accountIds: string[]): Promise<Counts> {
     oauth_access_tokens,
     authorization_codes,
     goals,
-    performance_snapshots,
+    campaign_benchmark_30d_snapshots,
     change_interventions,
     change_intervention_operations,
     change_intervention_evaluations,
@@ -205,7 +205,7 @@ async function countAll(userId: string, accountIds: string[]): Promise<Counts> {
     c(Q().from(schema.oauthAccessTokens).where(oauthTokenWhere)),
     c(Q().from(schema.authorizationCodes).where(authCodeWhere)),
     accountIds.length > 0 ? c(Q().from(schema.goals).where(inArray(schema.goals.accountId, accountIds))) : Promise.resolve(0),
-    accountIds.length > 0 ? c(Q().from(schema.performanceSnapshots).where(inArray(schema.performanceSnapshots.accountId, accountIds))) : Promise.resolve(0),
+    accountIds.length > 0 ? c(Q().from(schema.campaignBenchmarkThirtyDaySnapshots).where(inArray(schema.campaignBenchmarkThirtyDaySnapshots.accountId, accountIds))) : Promise.resolve(0),
     accountIds.length > 0 ? c(Q().from(schema.changeInterventions).where(inArray(schema.changeInterventions.accountId, accountIds))) : Promise.resolve(0),
     interventionIds.length > 0 ? c(Q().from(schema.changeInterventionOperations).where(inArray(schema.changeInterventionOperations.changeInterventionId, interventionIds))) : Promise.resolve(0),
     interventionIds.length > 0 ? c(Q().from(schema.changeInterventionEvaluations).where(inArray(schema.changeInterventionEvaluations.changeInterventionId, interventionIds))) : Promise.resolve(0),
@@ -227,7 +227,7 @@ async function countAll(userId: string, accountIds: string[]): Promise<Counts> {
     oauth_access_tokens,
     authorization_codes,
     goals,
-    performance_snapshots,
+    campaign_benchmark_30d_snapshots,
     change_interventions,
     change_intervention_operations,
     change_intervention_evaluations,
@@ -371,8 +371,8 @@ export async function POST(request: Request) {
     await del("goals", () =>
       db().delete(schema.goals).where(inArray(schema.goals.accountId, accountIds)),
     );
-    await del("performance_snapshots", () =>
-      db().delete(schema.performanceSnapshots).where(inArray(schema.performanceSnapshots.accountId, accountIds)),
+    await del("campaign_benchmark_30d_snapshots", () =>
+      db().delete(schema.campaignBenchmarkThirtyDaySnapshots).where(inArray(schema.campaignBenchmarkThirtyDaySnapshots.accountId, accountIds)),
     );
     await del("accounts", () =>
       db().delete(schema.accounts).where(inArray(schema.accounts.accountId, accountIds)),

@@ -10,6 +10,8 @@ export * from "./campaign-ops";
 export * from "./bulk";
 export * from "./settings";
 export * from "./sync-account";
+export * from "./account-health";
+export * from "./benchmark-snapshots";
 export * from "./pmax";
 export * from "./asset-links";
 export * from "./callouts";

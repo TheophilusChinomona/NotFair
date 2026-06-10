@@ -8,7 +8,7 @@ import { refreshGoogleConnectionCredentials, upsertGoogleConnection } from "@/li
 import { loadGoogleConnection } from "@/lib/connections/google-read";
 import { recordUserAttribution } from "@/lib/db/attribution";
 import { db, schema } from "@/lib/db";
-import { listConnectableAccounts, syncAccountSnapshots, type ConnectableAccount } from "@/lib/google-ads";
+import { listConnectableAccounts, syncAccountSnapshots, syncCampaignBenchmarkSnapshots, type ConnectableAccount } from "@/lib/google-ads";
 import { createClient } from "@/lib/supabase/server";
 import { getAppOrigin } from "@/lib/app-url";
 import { trackServerEvent, flushServerEvents } from "@/lib/analytics-server";
@@ -483,6 +483,11 @@ async function createOrRedirectGoogleAdsSession({
       ]).catch((err) => {
         console.error("[sync-account] Failed to snapshot on connect:", err);
       });
+      syncCampaignBenchmarkSnapshots(refreshToken, [
+        { id: account.id, loginCustomerId: account.loginCustomerId ?? null },
+      ], { days: 7 }).catch((err) => {
+        console.error("[benchmark-snapshots] Failed to backfill on connect:", err);
+      });
     });
 
     if (popup) {
@@ -583,14 +588,15 @@ async function reuseExistingSession({
 
   if (conn.customerIds.length > 0) {
     after(async () => {
-      syncAccountSnapshots(
-        refreshToken,
-        conn.customerIds.map((a) => ({
-          id: a.id,
-          loginCustomerId: a.loginCustomerId ?? null,
-        })),
-      ).catch((err) => {
+      const accounts = conn.customerIds.map((a) => ({
+        id: a.id,
+        loginCustomerId: a.loginCustomerId ?? null,
+      }));
+      syncAccountSnapshots(refreshToken, accounts).catch((err) => {
         console.error("[sync-account] Failed to snapshot on reuse:", err);
+      });
+      syncCampaignBenchmarkSnapshots(refreshToken, accounts, { days: 7 }).catch((err) => {
+        console.error("[benchmark-snapshots] Failed to backfill on reuse:", err);
       });
     });
   }

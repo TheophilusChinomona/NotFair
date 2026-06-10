@@ -1,5 +1,6 @@
 import { and, eq, sql } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
+import { CONNECTION_HEALTH_KEY, type GoogleAccountHealthEntry } from "@/lib/google-ads/account-health";
 import type { ConnectedAccount } from "@/lib/google-ads/types";
 
 /**
@@ -57,6 +58,10 @@ export async function upsertGoogleConnection(
         accountIds: accountIdsForRow,
         activeAccountId,
         platformMetadata,
+        // A fresh OAuth reconnect repairs connection-level auth failures, but
+        // keep per-account failures (deactivated / missing manager access) so
+        // benchmark jobs don't immediately re-burn credits on known-bad routes.
+        accountHealth: sql`${schema.adPlatformConnections.accountHealth} - ${CONNECTION_HEALTH_KEY}`,
         updatedAt: new Date(),
       },
     });
@@ -120,6 +125,19 @@ export async function setGoogleConnectionActiveAccount(
         eq(schema.adPlatformConnections.platform, "google_ads"),
       ),
     );
+}
+
+export async function setGoogleConnectionAccountHealthEntry(
+  args: { connectionId: number; key: string; entry: GoogleAccountHealthEntry },
+  executor: Executor = db(),
+): Promise<void> {
+  await executor
+    .update(schema.adPlatformConnections)
+    .set({
+      accountHealth: sql`jsonb_set(${schema.adPlatformConnections.accountHealth}, ${[args.key]}::text[], ${JSON.stringify(args.entry)}::jsonb, true)`,
+      updatedAt: new Date(),
+    })
+    .where(eq(schema.adPlatformConnections.id, args.connectionId));
 }
 
 function jsonbMerge(patch: Record<string, unknown>) {

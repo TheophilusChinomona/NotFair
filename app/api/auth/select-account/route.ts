@@ -3,7 +3,7 @@ import { NextResponse, after } from "next/server";
 import { getAppOrigin } from "@/lib/app-url";
 import { upsertGoogleConnection } from "@/lib/connections/google";
 import { recordUserAttribution } from "@/lib/db/attribution";
-import { listConnectableAccounts, parseCustomerIds, syncAccountSnapshots } from "@/lib/google-ads";
+import { listConnectableAccounts, parseCustomerIds, syncAccountSnapshots, syncCampaignBenchmarkSnapshots } from "@/lib/google-ads";
 import { createClient } from "@/lib/supabase/server";
 import { trackServerEvent, flushServerEvents } from "@/lib/analytics-server";
 import { maybeFireGoogleAdsSignup } from "@/lib/google-ads-signup";
@@ -147,11 +147,6 @@ export async function POST(request: Request) {
     }),
   );
 
-  // Session-level loginCustomerId tracks the primary account so legacy code
-  // paths that read `auth.loginCustomerId` directly (without going through
-  // `authForAccount`) still work for the default account.
-  const loginCustomerId = authorizedById.get(primaryAccount.id)?.loginCustomerId ?? null;
-
   await upsertGoogleConnection({
     userId: identity.userId,
     refreshToken: conn.refreshToken,
@@ -169,6 +164,9 @@ export async function POST(request: Request) {
   after(async () => {
     syncAccountSnapshots(conn.refreshToken, selectedAccounts).catch((err) => {
       console.error("[sync-account] Failed to snapshot on select:", err);
+    });
+    syncCampaignBenchmarkSnapshots(conn.refreshToken, selectedAccounts, { days: 7 }).catch((err) => {
+      console.error("[benchmark-snapshots] Failed to backfill on select:", err);
     });
   });
 

@@ -696,26 +696,36 @@ export async function getImpact(
   const afterEndStr = afterEnd.toISOString().slice(0, 10);
 
   const beforeSnapshots = await db()
-    .select()
-    .from(schema.performanceSnapshots)
+    .select({
+      campaignId: schema.campaignBenchmarkThirtyDaySnapshots.campaignId,
+      snapshotDate: schema.campaignBenchmarkThirtyDaySnapshots.snapshotAsOfDate,
+      costMicros: schema.campaignBenchmarkThirtyDaySnapshots.costMicros,
+      conversions: schema.campaignBenchmarkThirtyDaySnapshots.conversions,
+    })
+    .from(schema.campaignBenchmarkThirtyDaySnapshots)
     .where(
       and(
-        eq(schema.performanceSnapshots.accountId, accountId),
-        eq(schema.performanceSnapshots.campaignId, change.campaignId),
-        gte(schema.performanceSnapshots.snapshotDate, beforeCutoffStr),
-        lt(schema.performanceSnapshots.snapshotDate, changeDateStr),
+        eq(schema.campaignBenchmarkThirtyDaySnapshots.accountId, accountId),
+        eq(schema.campaignBenchmarkThirtyDaySnapshots.campaignId, change.campaignId),
+        gte(schema.campaignBenchmarkThirtyDaySnapshots.snapshotAsOfDate, beforeCutoffStr),
+        lt(schema.campaignBenchmarkThirtyDaySnapshots.snapshotAsOfDate, changeDateStr),
       ),
     );
 
   const afterSnapshots = await db()
-    .select()
-    .from(schema.performanceSnapshots)
+    .select({
+      campaignId: schema.campaignBenchmarkThirtyDaySnapshots.campaignId,
+      snapshotDate: schema.campaignBenchmarkThirtyDaySnapshots.snapshotAsOfDate,
+      costMicros: schema.campaignBenchmarkThirtyDaySnapshots.costMicros,
+      conversions: schema.campaignBenchmarkThirtyDaySnapshots.conversions,
+    })
+    .from(schema.campaignBenchmarkThirtyDaySnapshots)
     .where(
       and(
-        eq(schema.performanceSnapshots.accountId, accountId),
-        eq(schema.performanceSnapshots.campaignId, change.campaignId),
-        gte(schema.performanceSnapshots.snapshotDate, afterStartStr),
-        lt(schema.performanceSnapshots.snapshotDate, afterEndStr),
+        eq(schema.campaignBenchmarkThirtyDaySnapshots.accountId, accountId),
+        eq(schema.campaignBenchmarkThirtyDaySnapshots.campaignId, change.campaignId),
+        gte(schema.campaignBenchmarkThirtyDaySnapshots.snapshotAsOfDate, afterStartStr),
+        lt(schema.campaignBenchmarkThirtyDaySnapshots.snapshotAsOfDate, afterEndStr),
       ),
     );
 
@@ -828,18 +838,18 @@ export async function reviewChangeImpact(
 
     const snapshots = await db()
       .select({
-        campaignId: schema.performanceSnapshots.campaignId,
-        snapshotDate: schema.performanceSnapshots.snapshotDate,
-        costMicros: schema.performanceSnapshots.costMicros,
-        conversions: schema.performanceSnapshots.conversions,
+        campaignId: schema.campaignBenchmarkThirtyDaySnapshots.campaignId,
+        snapshotDate: schema.campaignBenchmarkThirtyDaySnapshots.snapshotAsOfDate,
+        costMicros: schema.campaignBenchmarkThirtyDaySnapshots.costMicros,
+        conversions: schema.campaignBenchmarkThirtyDaySnapshots.conversions,
       })
-      .from(schema.performanceSnapshots)
+      .from(schema.campaignBenchmarkThirtyDaySnapshots)
       .where(
         and(
-          eq(schema.performanceSnapshots.accountId, accountId),
-          inArray(schema.performanceSnapshots.campaignId, campaignIds),
-          gte(schema.performanceSnapshots.snapshotDate, snapshotRangeStart.toISOString().slice(0, 10)),
-          lte(schema.performanceSnapshots.snapshotDate, now.toISOString().slice(0, 10)),
+          eq(schema.campaignBenchmarkThirtyDaySnapshots.accountId, accountId),
+          inArray(schema.campaignBenchmarkThirtyDaySnapshots.campaignId, campaignIds),
+          gte(schema.campaignBenchmarkThirtyDaySnapshots.snapshotAsOfDate, snapshotRangeStart.toISOString().slice(0, 10)),
+          lte(schema.campaignBenchmarkThirtyDaySnapshots.snapshotAsOfDate, now.toISOString().slice(0, 10)),
         ),
       );
 

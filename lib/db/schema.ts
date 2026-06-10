@@ -10,6 +10,7 @@ import {
   uniqueIndex,
   index,
   timestamp,
+  date,
   jsonb,
   primaryKey,
 } from "drizzle-orm/pg-core";
@@ -107,32 +108,97 @@ export const operations = pgTable("operations", {
   index("ops_audit_snapshot_idx").on(table.auditSnapshotId),
 ]);
 
-// ─── Performance Snapshots ───────────────────────────────────────────
-
-export const performanceSnapshots = pgTable(
-  "performance_snapshots",
+// ─── Campaign Benchmark Snapshots ────────────────────────────────────
+// Compact benchmark corpus for peer comparisons. One row per
+// account/campaign/trailing-30-day snapshot. Derive CTR/CVR/CPC/CPA at query
+// time so rollups stay flexible.
+export const campaignBenchmarkThirtyDaySnapshots = pgTable(
+  "campaign_benchmark_30d_snapshots",
   {
     id: serial("id").primaryKey(),
     accountId: text("account_id").notNull(),
     campaignId: text("campaign_id").notNull(),
-    snapshotDate: text("snapshot_date").notNull(),
-    impressions: integer("impressions").default(0),
-    clicks: integer("clicks").default(0),
-    // bigint (signed 64-bit): int caps at ~$2,147/day/campaign in micros
-    // and silently drops snapshots for high-spend campaigns when the cron
-    // insert throws. mode: "number" keeps the JS type as `number`, which
-    // is safe up to ~$9B/day in micros (2^53 safe-integer bound).
-    costMicros: bigint("cost_micros", { mode: "number" }).default(0),
-    conversions: doublePrecision("conversions").default(0),
-    cpa: doublePrecision("cpa"),
+    snapshotAsOfDate: date("snapshot_as_of_date").notNull(),
+    windowStartDate: date("window_start_date").notNull(),
+    windowEndDate: date("window_end_date").notNull(),
+    windowDays: integer("window_days").notNull().default(30),
+    observedDays: integer("observed_days").notNull().default(0),
+
+    adNetworkType: text("ad_network_type").notNull().default("ALL"),
+    device: text("device").notNull().default("ALL"),
+
+    campaignName: text("campaign_name"),
+    campaignStatus: text("campaign_status"),
+    advertisingChannelType: text("advertising_channel_type"),
+    biddingStrategyType: text("bidding_strategy_type"),
+
+    currencyCode: text("currency_code").notNull().default("UNKNOWN"),
+    timeZone: text("time_zone"),
+    industryCategory: text("industry_category"),
+    businessNiche: text("business_niche"),
+    businessDomain: text("business_domain"),
+    businessLandingPageUrl: text("business_landing_page_url"),
+
+    geoTargetCount: integer("geo_target_count").notNull().default(0),
+    negativeGeoTargetCount: integer("negative_geo_target_count").notNull().default(0),
+    languageTargetCount: integer("language_target_count").notNull().default(0),
+    geoTargetConstants: jsonb("geo_target_constants").$type<string[]>().notNull().default([]),
+    languageConstants: jsonb("language_constants").$type<string[]>().notNull().default([]),
+
+    impressions: integer("impressions").notNull().default(0),
+    clicks: integer("clicks").notNull().default(0),
+    costMicros: bigint("cost_micros", { mode: "number" }).notNull().default(0),
+    conversions: doublePrecision("conversions").notNull().default(0),
+    conversionsValue: doublePrecision("conversions_value").notNull().default(0),
+
+    searchImpressionShare: doublePrecision("search_impression_share"),
+    searchTopImpressionShare: doublePrecision("search_top_impression_share"),
+    searchAbsoluteTopImpressionShare: doublePrecision("search_absolute_top_impression_share"),
+    searchBudgetLostImpressionShare: doublePrecision("search_budget_lost_impression_share"),
+    searchRankLostImpressionShare: doublePrecision("search_rank_lost_impression_share"),
+
+    hasSitelinks: boolean("has_sitelinks").notNull().default(false),
+    sitelinkCount: integer("sitelink_count").notNull().default(0),
+    hasCallouts: boolean("has_callouts").notNull().default(false),
+    calloutCount: integer("callout_count").notNull().default(0),
+    hasStructuredSnippets: boolean("has_structured_snippets").notNull().default(false),
+    structuredSnippetCount: integer("structured_snippet_count").notNull().default(0),
+    hasImageAssets: boolean("has_image_assets").notNull().default(false),
+    imageAssetCount: integer("image_asset_count").notNull().default(0),
+
+    keywordBroadImpressions: integer("keyword_broad_impressions").notNull().default(0),
+    keywordBroadClicks: integer("keyword_broad_clicks").notNull().default(0),
+    keywordBroadCostMicros: bigint("keyword_broad_cost_micros", { mode: "number" }).notNull().default(0),
+    keywordBroadConversions: doublePrecision("keyword_broad_conversions").notNull().default(0),
+    keywordBroadConversionsValue: doublePrecision("keyword_broad_conversions_value").notNull().default(0),
+    keywordPhraseImpressions: integer("keyword_phrase_impressions").notNull().default(0),
+    keywordPhraseClicks: integer("keyword_phrase_clicks").notNull().default(0),
+    keywordPhraseCostMicros: bigint("keyword_phrase_cost_micros", { mode: "number" }).notNull().default(0),
+    keywordPhraseConversions: doublePrecision("keyword_phrase_conversions").notNull().default(0),
+    keywordPhraseConversionsValue: doublePrecision("keyword_phrase_conversions_value").notNull().default(0),
+    keywordExactImpressions: integer("keyword_exact_impressions").notNull().default(0),
+    keywordExactClicks: integer("keyword_exact_clicks").notNull().default(0),
+    keywordExactCostMicros: bigint("keyword_exact_cost_micros", { mode: "number" }).notNull().default(0),
+    keywordExactConversions: doublePrecision("keyword_exact_conversions").notNull().default(0),
+    keywordExactConversionsValue: doublePrecision("keyword_exact_conversions_value").notNull().default(0),
+
     createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
   (table) => [
-    uniqueIndex("snapshot_account_campaign_date_idx").on(
+    uniqueIndex("campaign_benchmark_30d_account_campaign_asof_idx").on(
       table.accountId,
       table.campaignId,
-      table.snapshotDate,
+      table.snapshotAsOfDate,
     ),
+    index("campaign_benchmark_30d_peer_slice_idx").on(
+      table.industryCategory,
+      table.businessNiche,
+      table.currencyCode,
+      table.advertisingChannelType,
+      table.snapshotAsOfDate,
+    ),
+    index("campaign_benchmark_30d_channel_asof_idx").on(table.advertisingChannelType, table.snapshotAsOfDate),
   ],
 );
 
@@ -414,6 +480,16 @@ export const adPlatformConnections = pgTable("ad_platform_connections", {
   }>>().notNull().default([]),
   /** Currently-selected ad account (sticky-with-override per design doc decision #5). */
   activeAccountId: text("active_account_id"),
+  /** Per-Google-account benchmark health keyed by `${accountId}|${loginCustomerId || "direct"}` plus `__connection__`. */
+  accountHealth: jsonb("account_health").$type<Record<string, {
+    errorLevel?: "connection" | "account" | "transient";
+    lastSuccessAt?: string | null;
+    lastFailedAt?: string | null;
+    lastErrorCode?: string | null;
+    lastErrorMessage?: string | null;
+    skipUntil?: string | null;
+    consecutiveFailures?: number;
+  }>>().notNull().default({}),
   /** Platform-specific extras: Meta business_id, granted scopes, fb_user_id, etc. */
   platformMetadata: jsonb("platform_metadata").$type<Record<string, unknown>>().notNull().default({}),
   createdAt: timestamp("created_at").defaultNow().notNull(),

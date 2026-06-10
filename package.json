@@ -29,6 +29,13 @@
     "db:apply-0040-gohighlevel": "npx tsx scripts/apply-migration-0040-gohighlevel.ts",
     "db:apply-0041-gohighlevel-oauth": "npx tsx scripts/apply-migration-0041-gohighlevel-oauth.ts",
     "db:apply-0045-mcp-tool-feedback": "tsx scripts/apply-migration-0045-mcp-tool-feedback.ts",
+    "db:apply-0046-campaign-benchmarks": "tsx scripts/apply-migration-0046-campaign-benchmark-snapshots.ts",
+    "db:apply-0051-google-account-health": "tsx scripts/apply-migration-0051-google-account-health.ts",
+    "db:backfill-campaign-benchmarks": "tsx scripts/backfill-campaign-benchmark-snapshots.ts",
+    "db:monthly-campaign-benchmark-budget": "tsx scripts/backfill-campaign-benchmark-snapshots.ts --mode=traffic --credit-budget=500 --max-accounts=5000 --concurrency=1 --days=30 --allow-errors",
+    "db:reclassify-campaign-benchmark-niches": "tsx scripts/reclassify-campaign-benchmark-niches.ts",
+    "db:enrich-campaign-benchmark-domain-metadata": "tsx scripts/enrich-campaign-benchmark-domain-metadata.ts",
+    "db:enrich-campaign-benchmark-landing-pages": "tsx scripts/enrich-campaign-benchmark-landing-pages.ts",
     "eval:mcp": "npx tsx scripts/eval-mcp/eval.ts",
     "eval:mcp:compare": "npx tsx scripts/eval-mcp/compare.ts",
     "mcp-feedback:triage": "tsx scripts/triage-mcp-feedback.ts"

@@ -12,7 +12,7 @@
 // ─── Types ──────────────────────────────────────────────────────────
 
 /** Narrow snapshot shape the pure helpers consume. Matches
- * `schema.performanceSnapshots.$inferSelect` but avoids importing drizzle
+ * the campaign benchmark snapshot metric fields but avoids importing drizzle
  * into the pure module. */
 export type SnapshotRow = {
   campaignId: string;

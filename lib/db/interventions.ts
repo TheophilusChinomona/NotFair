@@ -385,20 +385,20 @@ export async function evaluateChangeIntervention(
     const [snapshots, otherInterventions, existingEvaluations] = await Promise.all([
       db()
         .select({
-          snapshotDate: schema.performanceSnapshots.snapshotDate,
-          campaignId: schema.performanceSnapshots.campaignId,
-          costMicros: schema.performanceSnapshots.costMicros,
-          conversions: schema.performanceSnapshots.conversions,
-          impressions: schema.performanceSnapshots.impressions,
-          clicks: schema.performanceSnapshots.clicks,
+          snapshotDate: schema.campaignBenchmarkThirtyDaySnapshots.snapshotAsOfDate,
+          campaignId: schema.campaignBenchmarkThirtyDaySnapshots.campaignId,
+          costMicros: schema.campaignBenchmarkThirtyDaySnapshots.costMicros,
+          conversions: schema.campaignBenchmarkThirtyDaySnapshots.conversions,
+          impressions: schema.campaignBenchmarkThirtyDaySnapshots.impressions,
+          clicks: schema.campaignBenchmarkThirtyDaySnapshots.clicks,
         })
-        .from(schema.performanceSnapshots)
+        .from(schema.campaignBenchmarkThirtyDaySnapshots)
         .where(
           and(
-            eq(schema.performanceSnapshots.accountId, accountId),
-            eq(schema.performanceSnapshots.campaignId, intervention.campaignId),
-            gte(schema.performanceSnapshots.snapshotDate, dateKey(snapshotsStart)),
-            lt(schema.performanceSnapshots.snapshotDate, dateKey(snapshotsEnd)),
+            eq(schema.campaignBenchmarkThirtyDaySnapshots.accountId, accountId),
+            eq(schema.campaignBenchmarkThirtyDaySnapshots.campaignId, intervention.campaignId),
+            gte(schema.campaignBenchmarkThirtyDaySnapshots.snapshotAsOfDate, dateKey(snapshotsStart)),
+            lt(schema.campaignBenchmarkThirtyDaySnapshots.snapshotAsOfDate, dateKey(snapshotsEnd)),
           ),
         ),
       db()

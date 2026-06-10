@@ -1,21 +1,33 @@
 import { NextResponse } from "next/server";
 import { db, schema } from "@/lib/db";
 import { desc, eq, gte } from "drizzle-orm";
+import { setGoogleConnectionAccountHealthEntry } from "@/lib/connections/google";
 import {
+  CONNECTION_HEALTH_KEY,
   authForAccount,
-  getCachedCustomer,
+  buildAccountHealthKey,
+  buildGoogleAccountHealthFailure,
+  buildGoogleAccountHealthSuccess,
+  classifyGoogleBenchmarkError,
+  collectCampaignTrafficBenchmarkThirtyDaySnapshots,
   parseCustomerIds,
+  shouldSkipGoogleAccountHealth,
+  upsertCampaignBenchmarkThirtyDaySnapshots,
   type AuthContext,
   type ConnectedAccount,
+  type GoogleAccountHealthMap,
 } from "@/lib/google-ads";
 
 /**
- * Daily performance snapshot cron job.
+ * Monthly campaign benchmark snapshot cron job.
  *
- * Triggered by Vercel Cron (see vercel.json).
- * For each active MCP session, captures yesterday's campaign metrics
- * for ALL connected accounts and stores them in performance_snapshots.
+ * Triggered by Vercel Cron (see vercel.json). For each connected Google Ads
+ * account, refreshes one trailing-30-day account/campaign snapshot. The daily
+ * benchmark table has been retired to keep Google Ads API quota and storage
+ * bounded.
  */
+const BENCHMARK_REFRESH_DAYS = 30;
+
 export async function GET(request: Request) {
   // Verify cron secret to prevent unauthorized access
   const authHeader = request.headers.get("authorization");
@@ -36,11 +48,14 @@ export async function GET(request: Request) {
       .where(gte(schema.mcpSessions.expiresAt, new Date().toISOString()))
       .orderBy(desc(schema.mcpSessions.createdAt));
 
-    const snapshotDate = getCompletedSnapshotDate();
-    const dateRange = { start: snapshotDate, end: snapshotDate };
-    const accounts = new Map<string, { candidates: Array<{ source: string; auth: AuthContext }> }>();
+    const benchmarkDateRange = getDateRangeEndingYesterday(BENCHMARK_REFRESH_DAYS);
+    type AccountCandidate = { source: string; auth: AuthContext; connectionId?: number; accountHealth?: GoogleAccountHealthMap };
+    const accounts = new Map<string, { candidates: AccountCandidate[] }>();
+
+    let benchmarkSkipped = 0;
 
     for (const connection of connections) {
+      const accountHealth = connection.accountHealth ?? {};
       const connectedAccounts = normalizeConnectedAccounts(connection.accountIds ?? []);
       const accountIds = connectedAccounts.length > 0
         ? connectedAccounts.map((account) => account.id)
@@ -59,8 +74,23 @@ export async function GET(request: Request) {
         authMethod: "oauth",
       };
 
+      const connectionHealth = accountHealth[CONNECTION_HEALTH_KEY];
+      if (shouldSkipGoogleAccountHealth(connectionHealth)) {
+        benchmarkSkipped += accountIds.length;
+        continue;
+      }
+
       for (const accountId of accountIds) {
-        addAccountCandidate(accounts, "connection", authForAccount(baseAuth, accountId));
+        const account = connectedAccounts.find((candidate) => candidate.id === accountId);
+        const healthKey = buildAccountHealthKey(accountId, account?.loginCustomerId ?? null);
+        if (shouldSkipGoogleAccountHealth(accountHealth[healthKey])) {
+          benchmarkSkipped++;
+          continue;
+        }
+        addAccountCandidate(accounts, "connection", authForAccount(baseAuth, accountId), {
+          connectionId: connection.id,
+          accountHealth,
+        });
       }
     }
 
@@ -89,29 +119,53 @@ export async function GET(request: Request) {
       }
     }
 
-    let snapshotsCreated = 0;
     let errors = 0;
-    let campaignsSeen = 0;
+    let benchmarkSnapshotsUpserted = 0;
+    let benchmarkErrors = 0;
+    const blockedConnections = new Set<number>();
 
     for (const { candidates } of accounts.values()) {
       let completed = false;
 
-      for (const { source, auth } of candidates) {
-        try {
-          const rows = await fetchAccountCampaignSnapshots(auth, dateRange);
-          campaignsSeen += rows.length;
-          if (rows.length > 0) {
-            await db()
-              .insert(schema.performanceSnapshots)
-              .values(rows)
-              .onConflictDoNothing(); // Skip if snapshot already exists for this date
+      for (const candidate of candidates) {
+        const { source, auth, connectionId, accountHealth } = candidate;
+        if (connectionId != null && blockedConnections.has(connectionId)) {
+          benchmarkSkipped++;
+          continue;
+        }
 
-            snapshotsCreated += rows.length;
+        try {
+          const benchmarkRows = await collectCampaignTrafficBenchmarkThirtyDaySnapshots(auth, benchmarkDateRange);
+          benchmarkSnapshotsUpserted += await upsertCampaignBenchmarkThirtyDaySnapshots(benchmarkRows);
+          if (connectionId != null) {
+            const key = buildAccountHealthKey(auth.customerId, auth.loginCustomerId ?? null);
+            await setGoogleConnectionAccountHealthEntry({
+              connectionId,
+              key,
+              entry: buildGoogleAccountHealthSuccess(),
+            });
           }
           completed = true;
           break;
         } catch (error) {
-          console.warn(`[cron/snapshot] Candidate failed for ${source}, account ${auth.customerId}:`, error);
+          benchmarkErrors++;
+          if (connectionId != null) {
+            const classified = classifyGoogleBenchmarkError(error);
+            const key = classified.errorLevel === "connection"
+              ? CONNECTION_HEALTH_KEY
+              : buildAccountHealthKey(auth.customerId, auth.loginCustomerId ?? null);
+            await setGoogleConnectionAccountHealthEntry({
+              connectionId,
+              key,
+              entry: buildGoogleAccountHealthFailure(accountHealth?.[key], classified),
+            });
+            if (classified.errorLevel === "connection") {
+              blockedConnections.add(connectionId);
+            }
+            console.warn(`[cron/snapshot] Benchmark snapshot failed for ${source}, account ${auth.customerId} (${classified.errorLevel}/${classified.code}):`, classified.message);
+          } else {
+            console.warn(`[cron/snapshot] Benchmark snapshot failed for ${source}, account ${auth.customerId}:`, error);
+          }
         }
       }
 
@@ -127,10 +181,11 @@ export async function GET(request: Request) {
       connectionsProcessed: connections.length,
       sessionsProcessed: sessions.length,
       accountsProcessed: accounts.size,
-      dateRange,
-      campaignsSeen,
-      snapshotsCreated,
+      benchmarkDateRange,
+      benchmarkSnapshotsUpserted,
       errors,
+      benchmarkErrors,
+      benchmarkSkipped,
     });
   } catch (error) {
     console.error("[cron/snapshot] Fatal error:", error);
@@ -142,26 +197,33 @@ export async function GET(request: Request) {
 }
 
 function addAccountCandidate(
-  accounts: Map<string, { candidates: Array<{ source: string; auth: AuthContext }> }>,
+  accounts: Map<string, { candidates: Array<{ source: string; auth: AuthContext; connectionId?: number; accountHealth?: GoogleAccountHealthMap }> }>,
   source: string,
   auth: AuthContext,
+  extras: { connectionId?: number; accountHealth?: GoogleAccountHealthMap } = {},
 ) {
-  const key = `${auth.customerId}|${auth.loginCustomerId ?? ""}`;
+  const key = buildAccountHealthKey(auth.customerId, auth.loginCustomerId ?? null);
+  const candidate = { source, auth, ...extras };
   const account = accounts.get(key);
   if (account) {
-    account.candidates.push({ source, auth });
+    account.candidates.push(candidate);
   } else {
-    accounts.set(key, { candidates: [{ source, auth }] });
+    accounts.set(key, { candidates: [candidate] });
   }
 }
 
-function getCompletedSnapshotDate(now = new Date()) {
-  const date = new Date(Date.UTC(
+function getDateRangeEndingYesterday(days: number, now = new Date()) {
+  const end = new Date(Date.UTC(
     now.getUTCFullYear(),
     now.getUTCMonth(),
     now.getUTCDate() - 1,
   ));
-  return date.toISOString().slice(0, 10);
+  const start = new Date(end);
+  start.setUTCDate(end.getUTCDate() - Math.max(1, days) + 1);
+  return {
+    start: start.toISOString().slice(0, 10),
+    end: end.toISOString().slice(0, 10),
+  };
 }
 
 function normalizeConnectedAccounts(
@@ -172,58 +234,4 @@ function normalizeConnectedAccounts(
     name: account.name ?? account.id,
     ...("loginCustomerId" in account ? { loginCustomerId: account.loginCustomerId ?? null } : {}),
   }));
-}
-
-type CampaignSnapshotRow = {
-  campaign?: { id?: string | number };
-  segments?: { date?: string };
-  metrics?: {
-    impressions?: number;
-    clicks?: number;
-    cost_micros?: number | string;
-    conversions?: number;
-  };
-};
-
-async function fetchAccountCampaignSnapshots(
-  auth: AuthContext,
-  dateRange: { start: string; end: string },
-) {
-  const customer = getCachedCustomer(auth);
-  const result = await customer.query(`
-    SELECT
-      campaign.id,
-      segments.date,
-      metrics.impressions,
-      metrics.clicks,
-      metrics.cost_micros,
-      metrics.conversions
-    FROM campaign
-    WHERE campaign.status != 'REMOVED'
-      AND segments.date BETWEEN '${dateRange.start}' AND '${dateRange.end}'
-    ORDER BY metrics.impressions DESC
-    LIMIT 100
-  `) as CampaignSnapshotRow[];
-
-  return result
-    .map((row) => {
-      const campaignId = row.campaign?.id;
-      const snapshotDate = row.segments?.date;
-      if (campaignId == null || !snapshotDate) return null;
-
-      const costMicros = Number(row.metrics?.cost_micros ?? 0);
-      const conversions = row.metrics?.conversions ?? 0;
-
-      return {
-        accountId: auth.customerId,
-        campaignId: String(campaignId),
-        snapshotDate,
-        impressions: row.metrics?.impressions ?? 0,
-        clicks: row.metrics?.clicks ?? 0,
-        costMicros,
-        conversions,
-        cpa: conversions > 0 ? costMicros / 1_000_000 / conversions : null,
-      };
-    })
-    .filter((row): row is NonNullable<typeof row> => row !== null);
 }
