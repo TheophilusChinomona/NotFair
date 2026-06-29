@@ -30,18 +30,23 @@ export type PickFolderResult =
 export async function pickFolder(opts: {
   prompt?: string;
   defaultLocation?: string;
+  signal?: AbortSignal;
 }): Promise<PickFolderResult> {
   const p = platform();
   if (p === "darwin") {
     return pickFolderMac(opts);
   }
-  // TODO: linux (zenity / kdialog), win32 (PowerShell FolderBrowserDialog).
+  if (p === "linux") {
+    return pickFolderLinux(opts);
+  }
+  // TODO: win32 (PowerShell FolderBrowserDialog).
   return { ok: false, kind: "unsupported", platform: p };
 }
 
 async function pickFolderMac(opts: {
   prompt?: string;
   defaultLocation?: string;
+  signal?: AbortSignal;
 }): Promise<PickFolderResult> {
   // Build the AppleScript expression carefully: we control both args, so
   // there's no untrusted shell-injection vector, but we still escape any
@@ -73,7 +78,7 @@ async function pickFolderMac(opts: {
     execFile(
       "/usr/bin/osascript",
       ["-e", script],
-      { timeout: DIALOG_TIMEOUT_MS },
+      { timeout: DIALOG_TIMEOUT_MS, signal: opts.signal },
       (err, stdout, stderr) => {
         // With default options (no encoding override), Node returns
         // stdout/stderr as strings. err carries .code on timeout /
@@ -86,8 +91,6 @@ async function pickFolderMac(opts: {
         resolve({ stdout, stderr, code: errCode });
       },
     );
-    // We don't wire up an AbortSignal here; the DIALOG_TIMEOUT_MS ceiling
-    // protects against a wedged osascript subprocess.
   });
 
   if (result.code !== 0) {
@@ -107,4 +110,93 @@ async function pickFolderMac(opts: {
   // strip it for consistency with how users typically write paths.
   const normalized = out.replace(/\/+$/, "");
   return { ok: true, path: normalized };
+}
+
+async function pickFolderLinux(opts: {
+  prompt?: string;
+  defaultLocation?: string;
+  signal?: AbortSignal;
+}): Promise<PickFolderResult> {
+  const prompt = opts.prompt ?? "Select a folder";
+
+  // Try zenity first (GTK-based, most common on GNOME/Ubuntu/Fedora),
+  // fall back to kdialog (KDE/Plasma).
+  const zenityArgs = [
+    "--file-selection",
+    "--directory",
+    `--title=${prompt}`,
+  ];
+  if (opts.defaultLocation) {
+    zenityArgs.push(`--filename=${opts.defaultLocation}/`);
+  }
+  const zenityResult = await execDialog("zenity", zenityArgs, opts.signal);
+  if (zenityResult !== null) {
+    return zenityResult;
+  }
+
+  // zenity not available, try kdialog
+  const kdialogArgs = [
+    "--getexistingdirectory",
+    opts.defaultLocation ?? "",
+    "--title",
+    prompt,
+  ];
+  const kdialogResult = await execDialog("kdialog", kdialogArgs, opts.signal);
+  if (kdialogResult !== null) {
+    return kdialogResult;
+  }
+
+  // Neither zenity nor kdialog available
+  return {
+    ok: false,
+    kind: "error",
+    message:
+      "No supported dialog tool found. Install zenity (GTK) or kdialog (KDE) for folder picker support.",
+  };
+}
+
+/**
+ * Execute a dialog command and return the result, or null if the command
+ * is not found (ENOENT), indicating we should try the next fallback.
+ */
+async function execDialog(
+  cmd: string,
+  args: string[],
+  signal?: AbortSignal,
+): Promise<PickFolderResult | null> {
+  const { promise, resolve } = Promise.withResolvers<PickFolderResult | null>();
+  execFile(
+    cmd,
+    args,
+    { timeout: DIALOG_TIMEOUT_MS, signal },
+    (err, stdout, stderr) => {
+      if (err) {
+        // ENOENT means the command doesn't exist — try next fallback
+        if ((err as NodeJS.ErrnoException).code === "ENOENT") {
+          resolve(null);
+          return;
+        }
+        // Exit code 1 in zenity/kdialog means user cancelled
+        if ("code" in err && (err as { code: number }).code === 1) {
+          resolve({ ok: false, kind: "cancelled" });
+          return;
+        }
+        resolve({
+          ok: false,
+          kind: "error",
+          message: stderr.trim() || err.message,
+        });
+        return;
+      }
+      const out = stdout.trim();
+      if (!out) {
+        resolve({ ok: false, kind: "cancelled" });
+        return;
+      }
+      // Normalize: strip trailing slash for consistency
+      const normalized = out.replace(/\/+$/, "");
+      resolve({ ok: true, path: normalized });
+    },
+  );
+  return promise;
 }
