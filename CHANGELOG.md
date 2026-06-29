@@ -11,6 +11,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.25.7] — 2026-06-29
+
+### Added
+
+- Added a new host-agnostic, zero-OAuth `create-ads` skill under `google-ads/create-ads/SKILL.md`. This skill allows generating complete Google Ads and Meta Ads campaigns, ad copy (RSAs, primary text, hooks, headlines, descriptions), keyword lists, and negative keyword exclusions for any business starting with just a website URL or description, without needing a connected ad account.
+
+---
+
 ## [0.25.6] — 2026-06-04
 
 ### Added

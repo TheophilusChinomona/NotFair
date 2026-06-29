@@ -1,0 +1,11 @@
+services:
+  notfair-cmo:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: notfair-cmo
+    ports:
+      - "3326:3326"
+    env_file:
+      - .env
+    restart: always

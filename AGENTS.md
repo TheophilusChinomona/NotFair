@@ -39,6 +39,7 @@ Skills under `seo/`, `google-ads/`, `meta-ads/`, `gemini/`, and `notfair-upgrade
 | Performance, keywords, bids, budgets, negatives, experiments, bulk ops | `google-ads` | `google-ads/manage/SKILL.md` |
 | Write ad copy, RSA headlines/descriptions, A/B variants | `google-ads-copy` | `google-ads/copy/SKILL.md` |
 | Landing-page quality, ad-to-page match, LPX diagnosis | `google-ads-landing` | `google-ads/landing/SKILL.md` |
+| Create Google/Meta campaigns and copy for any business from scratch (zero-OAuth) | `create-ads` | `google-ads/create-ads/SKILL.md` |
 
 ## Meta Ads
 
