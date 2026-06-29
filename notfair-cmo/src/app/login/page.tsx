@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, Suspense } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
 import { toast } from "sonner";
@@ -15,10 +15,27 @@ function LoginForm() {
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
+  const [hasUsers, setHasUsers] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/auth-status")
+      .then((res) => res.json())
+      .then((data) => {
+        const existing = data.hasUsers === true;
+        setHasUsers(existing);
+        if (!existing) setIsSignUp(true);
+      })
+      .catch(() => {
+        setHasUsers(true);
+      });
+  }, []);
+
+  // Force sign-in mode when users exist
+  const effectiveSignUp = hasUsers ? false : isSignUp;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !password || (isSignUp && !name)) {
+    if (!email || !password || (effectiveSignUp && !name)) {
       toast.error("Please fill in all fields");
       return;
     }
@@ -26,7 +43,7 @@ function LoginForm() {
     setLoading(true);
 
     try {
-      if (isSignUp) {
+      if (effectiveSignUp) {
         const { error } = await authClient.signUp.email({
           email,
           password,
@@ -79,7 +96,7 @@ function LoginForm() {
 
       <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-8 backdrop-blur-xl shadow-2xl">
         <form className="space-y-6" onSubmit={handleSubmit}>
-          {isSignUp && (
+          {effectiveSignUp && (
             <div>
               <label htmlFor="name" className="block text-xs font-semibold uppercase tracking-wider text-zinc-400">
                 Full Name
@@ -153,7 +170,7 @@ function LoginForm() {
                     </svg>
                     Processing...
                   </span>
-                ) : isSignUp ? (
+                ) : effectiveSignUp ? (
                   "Create Account"
                 ) : (
                   "Sign In"
@@ -162,14 +179,16 @@ function LoginForm() {
             </div>
           </form>
 
-          <div className="mt-6 flex justify-center text-sm">
-            <button
-              onClick={() => setIsSignUp(!isSignUp)}
-              className="text-xs font-semibold text-violet-400 hover:text-violet-300 transition-colors"
-            >
-              {isSignUp ? "Already have an account? Sign In" : "Need to register? Create Admin Account"}
-            </button>
-          </div>
+          {!hasUsers && (
+            <div className="mt-6 flex justify-center text-sm">
+              <button
+                onClick={() => setIsSignUp(!isSignUp)}
+                className="text-xs font-semibold text-violet-400 hover:text-violet-300 transition-colors"
+              >
+                {isSignUp ? "Already have an account? Sign In" : "Need to register? Create Admin Account"}
+              </button>
+            </div>
+          )}
         </div>
       </div>
   );

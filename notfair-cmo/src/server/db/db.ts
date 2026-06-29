@@ -251,64 +251,19 @@ CREATE INDEX IF NOT EXISTS idx_questions_pending ON questions(project_slug, stat
 CREATE INDEX IF NOT EXISTS idx_questions_task ON questions(task_id) WHERE task_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_approval_comments_approval ON approval_comments(approval_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_approval_policies_project ON approval_policies(project_slug, action_type);
-
-CREATE TABLE IF NOT EXISTS "user" (
-  id TEXT PRIMARY KEY,
-  name TEXT NOT NULL,
-  email TEXT NOT NULL UNIQUE,
-  "emailVerified" BOOLEAN NOT NULL,
-  image TEXT,
-  "createdAt" TIMESTAMP NOT NULL,
-  "updatedAt" TIMESTAMP NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS "session" (
-  id TEXT PRIMARY KEY,
-  "expiresAt" TIMESTAMP NOT NULL,
-  token TEXT NOT NULL UNIQUE,
-  "createdAt" TIMESTAMP NOT NULL,
-  "updatedAt" TIMESTAMP NOT NULL,
-  "ipAddress" TEXT,
-  "userAgent" TEXT,
-  "userId" TEXT NOT NULL REFERENCES "user"(id) ON DELETE CASCADE
-);
-
-CREATE TABLE IF NOT EXISTS "account" (
-  id TEXT PRIMARY KEY,
-  "accountId" TEXT NOT NULL,
-  "providerId" TEXT NOT NULL,
-  "userId" TEXT NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
-  "accessToken" TEXT,
-  "refreshToken" TEXT,
-  "idToken" TEXT,
-  "expiresAt" TIMESTAMP,
-  "password" TEXT,
-  "createdAt" TIMESTAMP NOT NULL,
-  "updatedAt" TIMESTAMP NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS "verification" (
-  id TEXT PRIMARY KEY,
-  identifier TEXT NOT NULL,
-  value TEXT NOT NULL,
-  "expiresAt" TIMESTAMP NOT NULL,
-  "createdAt" TIMESTAMP,
-  "updatedAt" TIMESTAMP
-);
 `;
 
 const workerCode = `
 const { parentPort, workerData } = require('node:worker_threads');
-const { Client } = require('pg');
+const { Pool } = require('pg');
 
-let client = null;
+let pool = null;
 
 async function init() {
-  client = new Client({ connectionString: workerData.connectionString });
-  await client.connect();
+  pool = new Pool({ connectionString: workerData.connectionString, max: 10 });
   
   // Setup database tables if not existing
-  const migrationCheck = await client.query(\`
+  const migrationCheck = await pool.query(\`
     SELECT EXISTS (
       SELECT FROM information_schema.tables 
       WHERE table_name = '_migrations'
@@ -318,7 +273,7 @@ async function init() {
   const exists = migrationCheck.rows[0].exists;
   if (!exists) {
     console.log("Initializing PostgreSQL database schema...");
-    await client.query(workerData.schemaSql);
+    await pool.query(workerData.schemaSql);
     console.log("Database schema initialized successfully!");
     
     // Backfill _migrations
@@ -331,7 +286,7 @@ async function init() {
       "014_scheduled_job_run_summary.sql", "015_meta_ads_and_gsc_accounts.sql"
     ];
     for (const name of migrationNames) {
-      await client.query("INSERT INTO _migrations (name, applied_at) VALUES ($1, $2)", [
+      await pool.query("INSERT INTO _migrations (name, applied_at) VALUES ($1, $2)", [
         name, new Date().toISOString()
       ]);
     }
@@ -345,7 +300,7 @@ init().then(() => {
 
   parentPort.on('message', async (msg) => {
     if (msg === 'stop') {
-      if (client) await client.end();
+      if (pool) await pool.end();
       process.exit(0);
     }
     
@@ -356,14 +311,14 @@ init().then(() => {
         const reqStr = decoder.decode(uint8Array.subarray(0, reqLen));
         const { sql, params } = JSON.parse(reqStr);
         
-        const res = await client.query(sql, params);
+        const res = await pool.query(sql, params);
         const resStr = JSON.stringify({ rows: res.rows, rowCount: res.rowCount });
         
         const encoder = new TextEncoder();
         const encoded = encoder.encode(resStr);
         
         if (encoded.length > uint8Array.length) {
-          throw new Error("Query result exceeded shared memory buffer size");
+          throw new Error("Query result exceeded shared memory buffer size (16MB)");
         }
         
         uint8Array.set(encoded);
@@ -445,6 +400,7 @@ function pgQuery(sql: string, params: any[]) {
   int32Array[0] = 1; // QUERY_PENDING
   
   worker.postMessage("query");
+  // Intentional: serialized main-thread sync bridge — true parallelism would require async callers (out of scope).
   Atomics.wait(int32Array, 0, 1);
   
   const status = int32Array[0];
@@ -580,48 +536,7 @@ export function getDbPath(): string {
 }
 
 function applyMigrations(db: Database.Database): void {
-  // Ensure Better-Auth tables exist in SQLite
   db.exec(`
-    CREATE TABLE IF NOT EXISTS "user" (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      email TEXT NOT NULL UNIQUE,
-      "emailVerified" INTEGER NOT NULL,
-      image TEXT,
-      "createdAt" TEXT NOT NULL,
-      "updatedAt" TEXT NOT NULL
-    );
-    CREATE TABLE IF NOT EXISTS "session" (
-      id TEXT PRIMARY KEY,
-      "expiresAt" TEXT NOT NULL,
-      token TEXT NOT NULL UNIQUE,
-      "createdAt" TEXT NOT NULL,
-      "updatedAt" TEXT NOT NULL,
-      "ipAddress" TEXT,
-      "userAgent" TEXT,
-      "userId" TEXT NOT NULL REFERENCES "user"(id) ON DELETE CASCADE
-    );
-    CREATE TABLE IF NOT EXISTS "account" (
-      id TEXT PRIMARY KEY,
-      "accountId" TEXT NOT NULL,
-      "providerId" TEXT NOT NULL,
-      "userId" TEXT NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
-      "accessToken" TEXT,
-      "refreshToken" TEXT,
-      "idToken" TEXT,
-      "expiresAt" TEXT,
-      "password" TEXT,
-      "createdAt" TEXT NOT NULL,
-      "updatedAt" TEXT NOT NULL
-    );
-    CREATE TABLE IF NOT EXISTS "verification" (
-      id TEXT PRIMARY KEY,
-      identifier TEXT NOT NULL,
-      value TEXT NOT NULL,
-      "expiresAt" TEXT NOT NULL,
-      "createdAt" TEXT,
-      "updatedAt" TEXT
-    );
     CREATE TABLE IF NOT EXISTS _migrations (
       name       TEXT PRIMARY KEY,
       applied_at TEXT NOT NULL

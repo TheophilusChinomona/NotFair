@@ -1,5 +1,19 @@
 # notfair-cmo
 
+## 0.8.0 — 2026-06-29
+
+**Production session gating fixed (cookie-name + real validation).** The previous middleware checked only for cookie *presence*, using a hardcoded bare cookie name that didn't match the `__Secure-` prefix in production. Now the middleware validates the session via a self-fetch to `/api/auth/get-session`, which handles both cookie-name variants — so Docker/PaaS builds no longer redirect every authenticated request to `/login`.
+
+**First-user-only admin sign-up.** The first registrant is auto-promoted to `role: admin`; subsequent sign-up attempts are rejected by a database-hooks guard. The login page detects the state by polling `/api/auth-status` and hides the "Create Admin Account" toggle once a user exists.
+
+**Hard-fail on missing `BETTER_AUTH_SECRET`.** In production (`NODE_ENV=production`), the server refuses to boot without a configured secret. In local dev, a per-machine secret is minted and persisted at `~/.notfair-cmo/auth-secret` (0o600), matching the existing MCP-server secret pattern.
+
+**Better-Auth owns its schema.** The four auth tables (user/session/account/verification) are no longer hand-rolled in the app's DDL — Better-Auth creates and migrates them idempotently via `ensureAuthSchema()`, invoked on the first auth route call. This adds `role/banned/banReason/banExpires` columns (admin plugin) that the old DDL lacked.
+
+**Postgres connection pooling.** The DB worker switched from a single `pg.Client` to a `pg.Pool` (max 10 connections), removing the SPOF from a single connection handle while preserving the existing synchronous `DbClient` contract via the `SharedArrayBuffer` bridge.
+
+**Middleware skip-list hardened.** Routes that should never be session-gated (MCP endpoints, OAuth callbacks, `/api/version`, `/api/auth-status`) are now excluded from both the in-function skip-list and the `config.matcher`.
+
 ## 0.7.1 — 2026-06-06
 
 **Sidebar shows the installed version + a one-click Upgrade button.** The sidebar footer now always displays `notfair-cmo v<x.y.z>`. When the npm registry has a newer release, an `v<x.y.z> available` button appears next to it — click runs `npm i -g notfair-cmo@latest` via a new `/api/upgrade` endpoint and surfaces "Restart to apply" on success. Latest-version lookup is cached 1 hour in-process so the sidebar polling doesn't pound `registry.npmjs.org`.
