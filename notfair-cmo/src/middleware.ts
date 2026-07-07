@@ -2,6 +2,11 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 export async function middleware(request: NextRequest) {
+
+  // E2E test mode — skip session validation entirely
+  if (process.env.E2E_TEST === "1") {
+    return NextResponse.next();
+  }
   const { pathname } = request.nextUrl;
 
   // Skip assets, auth API routes, public endpoints, and bearer-authed MCP routes
