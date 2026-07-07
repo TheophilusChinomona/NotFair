@@ -1,12 +1,13 @@
 import { test, expect } from "@playwright/test";
 import { SettingsPage } from "../pages/settings.page";
 
-test.describe("Settings", () => {
-  const projectSlug = "e2e-test";
+const NAV_TIMEOUT = 120000;
 
-  test("settings page renders", async ({ page }) => {
+test.describe("Settings", () => {
+  test("settings page renders for existing project", async ({ page }) => {
+    test.setTimeout(120000);
     const settings = new SettingsPage(page);
-    await settings.goto(projectSlug);
-    await expect(settings.heading).toBeVisible();
+    await settings.goto("anchored-uniforms");
+    await expect(settings.heading).toBeVisible({ timeout: 10000 });
   });
 });

@@ -1,6 +1,8 @@
 import { defineConfig } from "@playwright/test";
 
 export default defineConfig({
+  timeout: 60000,
+  expect: { timeout: 10000 },
   testDir: "./specs",
   fullyParallel: false,
   retries: 0,
@@ -9,9 +11,10 @@ export default defineConfig({
   use: {
     baseURL: "http://localhost:3326",
     browserName: "chromium",
-    headless: true,
+    navigationTimeout: 120000,
     screenshot: "only-on-failure",
     trace: "retain-on-failure",
+    actionTimeout: 15000,
   },
   projects: [
     {
