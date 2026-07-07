@@ -1,0 +1,58 @@
+name: E2E Tests
+
+on:
+  push:
+    branches: [developer]
+    paths:
+      - "notfair-cmo/src/**"
+      - "notfair-cmo/e2e/**"
+      - "notfair-cmo/package.json"
+      - ".github/workflows/e2e.yml"
+  pull_request:
+    paths:
+      - "notfair-cmo/src/**"
+      - "notfair-cmo/e2e/**"
+      - "notfair-cmo/package.json"
+      - ".github/workflows/e2e.yml"
+
+env:
+  E2E_TEST: "1"
+  # Use SQLite (no external DB needed)
+  PORT: 3326
+
+defaults:
+  run:
+    working-directory: notfair-cmo
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: notfair-cmo/pnpm-lock.yaml
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: npx playwright install chromium
+
+      - name: Start dev server
+        run: |
+          pnpm dev &
+          npx wait-on http://localhost:3326 --timeout 30000
+
+      - name: Run E2E tests
+        run: npx playwright test --config=e2e/playwright.config.ts
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: notfair-cmo/playwright-report/
+          retention-days: 7
