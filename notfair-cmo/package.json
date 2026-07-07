@@ -24,7 +24,7 @@
     "test:ui": "vitest --ui",
     "test:coverage": "vitest run --coverage",
     "eval": "vitest run --config vitest.evals.config.ts",
-    "test:e2e": "playwright test --config=e2e/playwright.config.ts",
+    "test:e2e": "playwright test --config=e2e/playwright.config.ts"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^1.0.0",
