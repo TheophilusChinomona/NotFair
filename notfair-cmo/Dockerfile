@@ -1,43 +1,36 @@
 FROM node:22-alpine AS base
+RUN npm install -g pnpm@10
 
 # --- Dependencies ---
 FROM base AS deps
+RUN apk add --no-cache python3 make g++ gcc
 WORKDIR /app
-RUN npm install -g pnpm@10
 COPY package.json pnpm-lock.yaml ./
-# --ignore-scripts skips postinstall (better-sqlite3 native build)
-# The build stage handles native compilation after COPY . .
-RUN pnpm install --frozen-lockfile --ignore-scripts
+RUN pnpm install --frozen-lockfile
 
 # --- Build ---
 FROM base AS builder
 WORKDIR /app
-ENV NODE_OPTIONS="--max-old-space-size=3072"
+COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_OPTIONS="--max-old-space-size=2048"
-
-RUN pnpm rebuild better-sqlite3 && pnpm run build
+RUN npx next build
 
 # --- Production runner ---
 FROM base AS runner
 WORKDIR /app
-
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
-
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
-
+COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/public ./public
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
-
+COPY --from=builder /app/package.json ./package.json
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/next.config.ts ./next.config.ts
 USER nextjs
-
 EXPOSE 3326
 ENV PORT=3326
 ENV HOSTNAME="0.0.0.0"
-
-CMD ["node", "server.js"]
+CMD ["node_modules/.bin/next", "start", "-p", "3326"]

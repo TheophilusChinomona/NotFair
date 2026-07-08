@@ -1,7 +1,9 @@
 import type { NextConfig } from "next";
 
 const config: NextConfig = {
-  output: "standalone",
+  // Docker: build copies .next/ directly, next start reads from there.
+  // Not using output: "standalone" because the standalone server has a bug
+  // where it starts but never serves requests. Use next start instead.
   typescript: {
     // Pre-existing type errors in MCP proxy files. The app compiles and runs
     // correctly — skip the type-check gate so Docker builds succeed.
