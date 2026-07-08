@@ -13,7 +13,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE: ghcr.io/${{ github.repository_owner }}/notfair-cmo
+  IMAGE: ghcr.io/theophiluschinomona/notfair-cmo
 
 jobs:
   build:
