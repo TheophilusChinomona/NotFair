@@ -15,7 +15,7 @@ async function getClient(): Promise<Auth.OAuth2Client | Auth.JWT> {
   const auth = new google.auth.GoogleAuth({
     scopes: ["https://www.googleapis.com/auth/adwords"],
   });
-  _client = (await auth.getClient()) as Auth.OAuth2Client | Auth.JWT;
+  _client = (await auth.getClient()) as unknown as Auth.OAuth2Client | Auth.JWT;
   return _client;
 }
 

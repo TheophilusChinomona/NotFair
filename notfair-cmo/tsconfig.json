@@ -38,6 +38,8 @@
   "exclude": [
     "node_modules",
     ".next/standalone",
+    "src/**/*.test.ts",
+    "src/**/*.test.tsx",
     "e2e"
   ]
 }

@@ -37,7 +37,7 @@ async function getClient(): Promise<Auth.OAuth2Client | Auth.JWT> {
       "https://www.googleapis.com/auth/webmasters.readonly",
     ],
   });
-  _client = (await auth.getClient()) as Auth.OAuth2Client | Auth.JWT;
+  _client = (await auth.getClient()) as unknown as Auth.OAuth2Client | Auth.JWT;
   return _client;
 }
 
