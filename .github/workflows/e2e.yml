@@ -56,3 +56,4 @@ jobs:
           name: playwright-report
           path: notfair-cmo/playwright-report/
           retention-days: 7
+
