@@ -7,7 +7,7 @@ export class DashboardPage {
 
   constructor(page: Page) {
     this.page = page;
-    this.sidebar = page.locator("nav, [role=navigation], aside");
+    this.sidebar = page.locator("[class*=sidebar], aside, nav");
     this.projectName = page.locator("h1, [data-testid=project-name]");
   }
 

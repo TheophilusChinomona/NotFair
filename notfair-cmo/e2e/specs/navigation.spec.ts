@@ -8,9 +8,9 @@ test.describe("Navigation", () => {
     test.setTimeout(120000);
     await page.goto(`/${SLUG}`, { timeout: NAV_TIMEOUT });
     await page.waitForLoadState("networkidle", { timeout: NAV_TIMEOUT });
-    const nav = page.locator("nav");
-    await expect(nav).toBeVisible({ timeout: 10000 });
-    const links = nav.locator("a");
+    const sidebar = page.locator("[class*=sidebar], aside").first();
+    await expect(sidebar).toBeVisible({ timeout: 10000 });
+    const links = sidebar.locator("a");
     const count = await links.count();
     expect(count).toBeGreaterThanOrEqual(3);
     const linkTexts = await links.allTextContents();
@@ -24,7 +24,8 @@ test.describe("Navigation", () => {
     test.setTimeout(120000);
     await page.goto(`/${SLUG}`, { timeout: NAV_TIMEOUT });
     await page.waitForLoadState("networkidle", { timeout: NAV_TIMEOUT });
-    await page.locator(`nav a:has-text("Connections")`).first().click();
+    const sidebar = page.locator("[class*=sidebar], aside").first();
+    await sidebar.locator(`a:has-text("Connections")`).first().click();
     await page.waitForURL("**/connections", { timeout: NAV_TIMEOUT });
     expect(page.url()).toContain("/connections");
   });
@@ -33,7 +34,8 @@ test.describe("Navigation", () => {
     test.setTimeout(120000);
     await page.goto(`/${SLUG}`, { timeout: NAV_TIMEOUT });
     await page.waitForLoadState("networkidle", { timeout: NAV_TIMEOUT });
-    await page.locator(`nav a:has-text("Settings")`).first().click();
+    const sidebar = page.locator("[class*=sidebar], aside").first();
+    await sidebar.locator(`a:has-text("Settings")`).first().click();
     await page.waitForURL("**/settings", { timeout: NAV_TIMEOUT });
     expect(page.url()).toContain("/settings");
   });

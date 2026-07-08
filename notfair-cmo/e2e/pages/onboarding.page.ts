@@ -9,10 +9,10 @@ export class OnboardingPage {
 
   constructor(page: Page) {
     this.page = page;
-    this.projectNameInput = page.locator("#name, input[name=name]");
+    this.projectNameInput = page.locator("input[placeholder*='Acme'], input[id*=name], input[name=name]");
     this.websiteUrlInput = page.locator("#website_url, input[name=website_url]");
     this.createButton = page.locator("button[type=submit], button:has-text('Create')");
-    this.recommendedTiles = page.locator("[data-testid=recommended-tile], [class*=tile]");
+    this.recommendedTiles = page.locator("[data-mcp-key], [class*=connector], [class*=tile]");
   }
 
   async goto() {
