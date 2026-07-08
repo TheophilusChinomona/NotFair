@@ -12,7 +12,7 @@ RUN pnpm install --frozen-lockfile --ignore-scripts
 # --- Build ---
 FROM base AS builder
 WORKDIR /app
-COPY --from=deps /app/node_modules ./node_modules
+ENV NODE_OPTIONS="--max-old-space-size=3072"
 COPY . .
 
 ENV NEXT_TELEMETRY_DISABLED=1
