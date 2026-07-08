@@ -10,6 +10,8 @@ RUN pnpm install --frozen-lockfile
 
 # --- Build ---
 FROM base AS builder
+ARG BETTER_AUTH_SECRET=placeholder-build-only
+ENV BETTER_AUTH_SECRET=$BETTER_AUTH_SECRET
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .

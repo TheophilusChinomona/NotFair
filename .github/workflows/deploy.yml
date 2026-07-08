@@ -34,6 +34,8 @@ jobs:
           context: notfair-cmo
           push: true
           tags: ${{ env.IMAGE }}:latest,${{ env.IMAGE }}:${{ github.sha }}
+          build-args: |
+            BETTER_AUTH_SECRET=${{ secrets.BETTER_AUTH_SECRET }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
