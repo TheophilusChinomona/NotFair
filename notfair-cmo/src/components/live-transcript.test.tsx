@@ -251,7 +251,7 @@ describe("LiveTranscript rendering events", () => {
             {
               key: "notfair-googleads",
               display_name: "NotFair Google Ads",
-              resource_url: "https://notfair.co/api/mcp/google_ads",
+              resource_url: "http://localhost:3326/api/mcp/google_ads",
             },
           ],
         })}
@@ -259,7 +259,7 @@ describe("LiveTranscript rendering events", () => {
     );
     const imgs = screen.getAllByRole("img", { name: /NotFair Google Ads/ });
     expect(imgs.length).toBeGreaterThanOrEqual(1);
-    expect(imgs[0]!.getAttribute("src")).toMatch(/notfair\.co/);
+    expect(imgs[0]!.getAttribute("src")).toMatch(/localhost/);
   });
 
   it("renders an MCP brand favicon when a tool name matches a catalog entry", () => {
@@ -282,7 +282,7 @@ describe("LiveTranscript rendering events", () => {
             {
               key: "notfair-googleads",
               display_name: "NotFair Google Ads",
-              resource_url: "https://notfair.co/api/mcp/google_ads",
+              resource_url: "http://localhost:3326/api/mcp/google_ads",
             },
           ],
         })}
@@ -291,7 +291,7 @@ describe("LiveTranscript rendering events", () => {
     // Favicon img comes from the catalog entry's brand domain (notfair.co).
     const imgs = screen.getAllByRole("img", { name: /NotFair Google Ads/ });
     expect(imgs.length).toBeGreaterThanOrEqual(1);
-    expect(imgs[0]!.getAttribute("src")).toMatch(/notfair\.co/);
+    expect(imgs[0]!.getAttribute("src")).toMatch(/localhost/);
     // Humanized action verb.
     expect(screen.getAllByText(/list ad accounts/i).length).toBeGreaterThanOrEqual(1);
   });

@@ -39,9 +39,8 @@ export const MCP_CATALOG_PRESETS: McpSpec[] = [
     display_name: "NotFair Google Ads",
     description:
       "Live Google Ads operations: campaigns, bids, budgets, keywords, search terms, change history.",
-    resource_url: "https://notfair.co/api/mcp/google_ads",
-    discovery_url:
-      "https://notfair.co/.well-known/oauth-protected-resource/api/mcp/google_ads",
+    resource_url: "http://localhost:3326/api/mcp/google_ads",
+    discovery_url: "",
     source: "preset",
   },
   {
@@ -49,9 +48,8 @@ export const MCP_CATALOG_PRESETS: McpSpec[] = [
     display_name: "NotFair Meta Ads",
     description:
       "Live Meta Ads (Facebook + Instagram) operations: campaigns, ad sets, ads, creatives, insights.",
-    resource_url: "https://notfair.co/api/mcp/meta_ads",
-    discovery_url:
-      "https://notfair.co/.well-known/oauth-protected-resource/api/mcp/meta_ads",
+    resource_url: "http://localhost:3326/api/mcp/meta_ads",
+    discovery_url: "",
     source: "preset",
   },
   {
@@ -59,9 +57,17 @@ export const MCP_CATALOG_PRESETS: McpSpec[] = [
     display_name: "NotFair Google Search Console",
     description:
       "Organic search performance: queries, pages, impressions, clicks, indexing.",
-    resource_url: "https://notfair.co/api/mcp/google_search_console",
-    discovery_url:
-      "https://notfair.co/.well-known/oauth-protected-resource/api/mcp/google_search_console",
+    resource_url: "http://localhost:3326/api/mcp/google_search_console",
+    discovery_url: "",
+    source: "preset",
+  },
+  {
+    key: "notfair-gbp",
+    display_name: "NotFair Google Business Profile",
+    description:
+      "Google Business Profile management: accounts, locations, reviews, posts, insights.",
+    resource_url: "http://localhost:3326/api/mcp/gbp",
+    discovery_url: "",
     source: "preset",
   },
   {

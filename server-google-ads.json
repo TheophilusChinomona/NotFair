@@ -3,7 +3,7 @@
   "name": "io.github.nowork-studio/notfair",
   "title": "NotFair-GoogleAds",
   "description": "Google Ads MCP - analyze performance, manage keywords, bids, and campaigns.",
-  "websiteUrl": "https://notfair.co",
+  "websiteUrl": "",
   "repository": {
     "url": "https://github.com/nowork-studio/notfair",
     "source": "github"
@@ -12,7 +12,7 @@
   "remotes": [
     {
       "type": "streamable-http",
-      "url": "https://notfair.co/api/mcp/google_ads"
+      "url": "http://localhost:3326/api/mcp/google_ads"
     }
   ]
 }

@@ -1,0 +1,47 @@
+# Production compose for NotFair CMO with self-hosted MCP proxies.
+#
+# Usage:
+#   docker compose -f docker-compose.prod.yml up -d
+#
+# Required env (set in .env or shell):
+#   BETTER_AUTH_SECRET        — openssl rand -base64 32
+#   GOOGLE_ADS_DEVELOPER_TOKEN— from Google Ads > API Center
+#   META_ACCESS_TOKEN         — from Facebook Graph API Explorer
+#
+# Optional:
+#   GOOGLE_ADS_MANAGER_ID     — MCC ID for Google Ads
+#   BETTER_AUTH_URL           — public URL (default http://localhost:3326)
+#
+# Auth for GSC and GBP uses Application Default Credentials (ADC):
+#   Either volume-mount ~/.config/gcloud/ or set GOOGLE_APPLICATION_CREDENTIALS
+
+services:
+  notfair-cmo:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: notfair-cmo
+    restart: unless-stopped
+    ports:
+      - "3326:3326"
+    environment:
+      # App
+      - PORT=3326
+      - NODE_ENV=production
+      - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET:?}
+      - BETTER_AUTH_URL=${BETTER_AUTH_URL:-http://localhost:3326}
+      # Google Ads
+      - GOOGLE_ADS_DEVELOPER_TOKEN=${GOOGLE_ADS_DEVELOPER_TOKEN:-}
+      - GOOGLE_ADS_MANAGER_ID=${GOOGLE_ADS_MANAGER_ID:-}
+      # Meta Ads
+      - META_ACCESS_TOKEN=${META_ACCESS_TOKEN:-}
+      # Google API access (ADC fallback)
+      - GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS:-/app/gcp-credentials.json}
+    volumes:
+      # Mount Google service account key for GSC + GBP + Google Ads
+      - ${GCP_KEY_PATH:-./gcp-credentials.json}:/app/gcp-credentials.json:ro
+      # Persistent data (SQLite DB, agent workspaces)
+      - notfair-cmo-data:/home/nextjs/.notfair-cmo
+
+volumes:
+  notfair-cmo-data:

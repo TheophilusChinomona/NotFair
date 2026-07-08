@@ -53,8 +53,7 @@ describe("MCP_CATALOG_PRESETS", () => {
       key: "notfair-googleads",
       display_name: expect.any(String),
       description: expect.any(String),
-      resource_url: expect.stringMatching(/^https:\/\//),
-      discovery_url: expect.stringMatching(/^https:\/\//),
+      resource_url: expect.stringMatching(/^https?:\/\//),
       source: "preset",
     });
   });
@@ -64,7 +63,6 @@ describe("MCP_CATALOG_PRESETS", () => {
       expect(spec.source).toBe("preset");
       expect(spec.key).toMatch(/^[a-z0-9][a-z0-9-]*$/);
       expect(spec.resource_url).toMatch(/^https?:\/\//);
-      expect(spec.discovery_url).toMatch(/^https?:\/\//);
     }
   });
 

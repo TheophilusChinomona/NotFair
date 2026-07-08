@@ -3,7 +3,7 @@
   "name": "io.github.nowork-studio/notfair-meta-ads",
   "title": "NotFair-MetaAds",
   "description": "Meta Ads MCP (Facebook + Instagram) - analyze performance, manage budgets, pause campaigns.",
-  "websiteUrl": "https://notfair.co",
+  "websiteUrl": "",
   "repository": {
     "url": "https://github.com/nowork-studio/notfair",
     "source": "github"
@@ -12,7 +12,7 @@
   "remotes": [
     {
       "type": "streamable-http",
-      "url": "https://notfair.co/api/mcp/meta_ads"
+      "url": "http://localhost:3326/api/mcp/meta_ads"
     }
   ]
 }

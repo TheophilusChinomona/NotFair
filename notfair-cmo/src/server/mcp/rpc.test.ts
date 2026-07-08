@@ -14,7 +14,7 @@ import { mcpRpcAutoRefresh } from "./rpc";
 import { findMcpToken, upsertMcpToken } from "./tokens";
 
 const PRESET_KEY = "notfair-googleads";
-const PRESET_URL = "https://notfair.co/api/mcp/google_ads";
+const PRESET_URL = "http://localhost:3326/api/mcp/google_ads";
 
 function applyMigrations(db: Database.Database): void {
   for (const migration of MIGRATIONS) db.exec(migration.sql);

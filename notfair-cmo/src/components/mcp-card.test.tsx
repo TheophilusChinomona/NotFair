@@ -40,16 +40,16 @@ const spec: McpSpec = {
   key: "notfair-googleads",
   display_name: "NotFair Google Ads",
   description: "Live Google Ads operations.",
-  resource_url: "https://notfair.co/api/mcp/google_ads",
+  resource_url: "http://localhost:3326/api/mcp/google_ads",
   discovery_url:
-    "https://notfair.co/.well-known/oauth-protected-resource/api/mcp/google_ads",
+    "http://localhost:3326/.well-known/oauth-protected-resource/api/mcp/google_ads",
   source: "preset",
 };
 
 function connected(overrides: Partial<Extract<McpRuntimeStatus, { state: "connected" }>> = {}): McpRuntimeStatus {
   return {
     state: "connected",
-    url: "https://notfair.co/api/mcp/google_ads",
+    url: "http://localhost:3326/api/mcp/google_ads",
     tools_count: 12,
     last_checked_at: new Date().toISOString(),
     ...overrides,
@@ -85,7 +85,7 @@ describe("McpCard", () => {
     expect(screen.getByText(spec.display_name)).toBeInTheDocument();
     expect(screen.getByText(spec.description)).toBeInTheDocument();
     // The row shows the resource URL's host, not the full URL.
-    expect(screen.getByText("notfair.co")).toBeInTheDocument();
+    expect(screen.getByText("localhost:3326")).toBeInTheDocument();
   });
 
   it("renders a 'connected' indicator and just the host when connected", () => {
@@ -93,7 +93,7 @@ describe("McpCard", () => {
     expect(screen.getByText("connected")).toBeInTheDocument();
     // The "connected" tag carries the live signal; the status line shows
     // only the host so the row doesn't repeat itself.
-    expect(screen.getByText("notfair.co")).toBeInTheDocument();
+    expect(screen.getByText("localhost:3326")).toBeInTheDocument();
     expect(screen.queryByText(/verified/)).not.toBeInTheDocument();
   });
 

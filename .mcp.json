@@ -2,15 +2,19 @@
   "mcpServers": {
     "NotFair-GoogleAds": {
       "type": "http",
-      "url": "https://notfair.co/api/mcp/google_ads"
+      "url": "http://localhost:3326/api/mcp/google_ads"
     },
     "NotFair-MetaAds": {
       "type": "http",
-      "url": "https://notfair.co/api/mcp/meta_ads"
+      "url": "http://localhost:3326/api/mcp/meta_ads"
     },
     "NotFair-SearchConsole": {
       "type": "http",
-      "url": "https://notfair.co/api/mcp/google_search_console"
+      "url": "http://localhost:3326/api/mcp/google_search_console"
+    },
+    "NotFair-GBP": {
+      "type": "http",
+      "url": "http://localhost:3326/api/mcp/gbp"
     }
   }
 }

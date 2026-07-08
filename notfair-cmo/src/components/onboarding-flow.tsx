@@ -265,7 +265,7 @@ function NameStep({ onCreated }: { onCreated: (slug: string) => void }) {
             id="website_url"
             name="website_url"
             type="url"
-            placeholder="https://notfair.co"
+            placeholder="http://localhost:3326"
             maxLength={500}
             disabled={isPending}
             className="h-9 rounded-lg text-[14px]"
@@ -426,7 +426,7 @@ const RECOMMENDED_TILES: RecommendedTile[] = [
     agent_badge: "Google Ads agent",
     description:
       "Audits campaigns, finds wasted spend, proposes bid changes.",
-    resource_url: "https://notfair.co/api/mcp/google_ads",
+    resource_url: "http://localhost:3326/api/mcp/google_ads",
     account_step: "account",
     account_action_label: "Select Google Ads account",
   },
@@ -436,7 +436,7 @@ const RECOMMENDED_TILES: RecommendedTile[] = [
     agent_badge: "Meta Ads agent",
     description:
       "Audits ad sets, diagnoses creative fatigue, surfaces ROAS winners.",
-    resource_url: "https://notfair.co/api/mcp/meta_ads",
+    resource_url: "http://localhost:3326/api/mcp/meta_ads",
     account_step: "meta-account",
     account_action_label: "Select Meta ad account",
   },
@@ -448,7 +448,7 @@ const RECOMMENDED_TILES: RecommendedTile[] = [
     agent_badge: "SEO agent",
     description:
       "Pulls organic performance, surfaces query and page movers, diagnoses indexing.",
-    resource_url: "https://notfair.co/api/mcp/google_search_console",
+    resource_url: "http://localhost:3326/api/mcp/google_search_console",
     account_step: "gsc-property",
     account_action_label: "Select GSC property",
   },

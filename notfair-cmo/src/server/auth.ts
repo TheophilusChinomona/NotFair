@@ -140,12 +140,25 @@ const ADMIN_COLUMNS: { name: string; ddl: string }[] = [
 let _schemaReady: Promise<void> | null = null;
 
 function ensureAdminColumns(): void {
-  const existingCols = new Set(
-    (getDb().prepare("PRAGMA table_info('user')").all() as { name: string }[]).map((c) => c.name),
-  );
-  for (const col of ADMIN_COLUMNS) {
-    if (!existingCols.has(col.name)) {
-      getDb().exec(col.ddl);
+  if (isPostgres) {
+    // PostgreSQL — query information_schema
+    const cols = getDb().prepare(
+      "SELECT column_name FROM information_schema.columns WHERE table_name = 'user'",
+    ).all() as { column_name: string }[];
+    const existingCols = new Set(cols.map((c) => c.column_name));
+    for (const col of ADMIN_COLUMNS) {
+      if (!existingCols.has(col.name)) {
+        getDb().exec(col.ddl);
+      }
+    }
+  } else {
+    // SQLite — PRAGMA table_info
+    const cols = getDb().prepare("PRAGMA table_info('user')").all() as { name: string }[];
+    const existingCols = new Set(cols.map((c) => c.name));
+    for (const col of ADMIN_COLUMNS) {
+      if (!existingCols.has(col.name)) {
+        getDb().exec(col.ddl);
+      }
     }
   }
 }
@@ -157,10 +170,12 @@ export function ensureAuthSchema(): Promise<void> {
       try {
         await ctx.runMigrations();
       } catch {
-        // runMigrations fails for SQLite (Kysely introspection not available).
-        // Create tables and admin columns directly.
         for (const ddl of AUTH_TABLES_DDL) {
-          getDb().exec(ddl);
+          try {
+            getDb().exec(ddl);
+          } catch {
+            // table may already exist — ignore
+          }
         }
         ensureAdminColumns();
       }

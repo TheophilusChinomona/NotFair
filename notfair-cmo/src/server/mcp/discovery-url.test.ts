@@ -4,8 +4,8 @@ import { deriveDiscoveryUrl } from "./discovery-url";
 
 describe("deriveDiscoveryUrl", () => {
   it("inserts the well-known suffix between origin and path", () => {
-    expect(deriveDiscoveryUrl("https://notfair.co/api/mcp/google_ads")).toBe(
-      "https://notfair.co/.well-known/oauth-protected-resource/api/mcp/google_ads",
+    expect(deriveDiscoveryUrl("http://localhost:3326/api/mcp/google_ads")).toBe(
+      "http://localhost:3326/.well-known/oauth-protected-resource/api/mcp/google_ads",
     );
   });
 

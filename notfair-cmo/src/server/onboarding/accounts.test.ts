@@ -129,7 +129,7 @@ describe("listGoogleAdsAccounts", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     getMcpConfigMock.mockReturnValue({
-      url: "https://notfair.co/api/mcp/google_ads",
+      url: "http://localhost:3326/api/mcp/google_ads",
       token: "tok",
     });
   });
@@ -196,7 +196,7 @@ describe("setOnboardingAccountAction", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     getMcpConfigMock.mockReturnValue({
-      url: "https://notfair.co/api/mcp/google_ads",
+      url: "http://localhost:3326/api/mcp/google_ads",
       token: "tok",
     });
     getProjectMock.mockReturnValue({
@@ -304,7 +304,7 @@ describe("listMetaAdsAccounts", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     getMcpConfigMock.mockReturnValue({
-      url: "https://notfair.co/api/mcp/meta_ads",
+      url: "http://localhost:3326/api/mcp/meta_ads",
       token: "tok",
     });
   });
@@ -353,7 +353,7 @@ describe("setOnboardingMetaAdsAccountAction", () => {
       display_name: "Acme",
     });
     getMcpConfigMock.mockReturnValue({
-      url: "https://notfair.co/api/mcp/meta_ads",
+      url: "http://localhost:3326/api/mcp/meta_ads",
       token: "tok",
     });
   });
@@ -392,7 +392,7 @@ describe("listGscProperties", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     getMcpConfigMock.mockReturnValue({
-      url: "https://notfair.co/api/mcp/google_search_console",
+      url: "http://localhost:3326/api/mcp/google_search_console",
       token: "tok",
     });
   });
@@ -460,7 +460,7 @@ describe("setOnboardingGscPropertyAction", () => {
       display_name: "Acme",
     });
     getMcpConfigMock.mockReturnValue({
-      url: "https://notfair.co/api/mcp/google_search_console",
+      url: "http://localhost:3326/api/mcp/google_search_console",
       token: "tok",
     });
   });

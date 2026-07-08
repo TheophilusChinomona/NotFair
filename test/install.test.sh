@@ -202,7 +202,7 @@ echo "=== 5. MCP server config ==="
 
 assert_contains "$REPO_ROOT/.mcp.json" "\"NotFair-GoogleAds\"" ".mcp.json registers the NotFair-GoogleAds server"
 assert_contains "$REPO_ROOT/.mcp.json" "\"type\": \"http\"" ".mcp.json uses native HTTP transport (no mcp-remote bridge)"
-assert_contains "$REPO_ROOT/.mcp.json" "notfair.co/api/mcp/google_ads" ".mcp.json points at NotFair-GoogleAds MCP endpoint"
+assert_contains "$REPO_ROOT/.mcp.json" "localhost:3326/api/mcp/google_ads" ".mcp.json points at NotFair-GoogleAds MCP endpoint"
 
 # ─── Test 6: Connectors section in README ─────────────────────
 
