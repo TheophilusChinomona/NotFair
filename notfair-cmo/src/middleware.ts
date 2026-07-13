@@ -19,11 +19,11 @@ export async function middleware(request: NextRequest) {
     pathname === "/favicon.ico" ||
     pathname === "/login" ||
     pathname.startsWith("/api/auth") ||
-    pathname.startsWith("/api/mcp") ||
+    pathname === "/api/auth-status" ||
+    pathname.startsWith("/api/debug-auth") ||
     pathname.startsWith("/api/mcp-oauth") ||
     pathname.startsWith("/api/oauth") ||
-    pathname === "/api/version" ||
-    pathname === "/api/auth-status"
+    pathname === "/api/version"
   ) {
     return NextResponse.next();
   }
@@ -32,7 +32,6 @@ export async function middleware(request: NextRequest) {
   try {
     const res = await fetch(`${request.nextUrl.origin}/api/auth/get-session`, {
       headers: { cookie: request.headers.get("cookie") ?? "" },
-      // Mirror the original request's IP/forwarded headers for logging
     });
     const data = await res.json().catch(() => null);
     if (res.ok && data?.session) {
@@ -49,6 +48,6 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!api/auth|api/mcp|api/mcp-oauth|api/oauth|api/auth-status|_next/static|_next/image|favicon.ico).*)",
+    "/((?!api/auth|api/mcp|api/mcp-oauth|api/oauth|api/auth-status|api/debug-auth|_next/static|_next/image|favicon.ico).*)",
   ],
 };
