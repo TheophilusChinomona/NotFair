@@ -1,3 +1,5 @@
+import { NextResponse } from "next/server";
+
 import { auth, ensureAuthSchema } from "@/server/auth";
 import { toNextJsHandler } from "better-auth/next-js";
 
@@ -14,10 +16,9 @@ export async function POST(req: Request) {
     await ensureAuthSchema();
     return handler.POST(req);
   } catch (error) {
-    console.error("[auth/POST] signup error:", error);
-    return new Response(JSON.stringify({ error: "Internal server error", details: String(error) }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" },
-    });
-  }
+      console.error("[auth/POST] signup error:", error);
+      return NextResponse.json(
+        { error: "Signup failed", details: error instanceof Error ? error.message : String(error) },
+        { status: 500 },
+      );
 }
