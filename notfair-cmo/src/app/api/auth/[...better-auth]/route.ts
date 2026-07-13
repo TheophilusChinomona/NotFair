@@ -10,6 +10,14 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  await ensureAuthSchema();
-  return handler.POST(req);
+  try {
+    await ensureAuthSchema();
+    return handler.POST(req);
+  } catch (error) {
+    console.error("[auth/POST] signup error:", error);
+    return new Response(JSON.stringify({ error: "Internal server error", details: String(error) }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
 }
