@@ -21,4 +21,5 @@ export async function POST(req: Request) {
         { error: "Signup failed", details: error instanceof Error ? error.message : String(error) },
         { status: 500 },
       );
+  }
 }
