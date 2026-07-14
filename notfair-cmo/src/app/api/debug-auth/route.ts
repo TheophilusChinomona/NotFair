@@ -1,72 +1,55 @@
 import { NextResponse } from "next/server";
 import { auth, ensureAuthSchema } from "@/server/auth";
-import { getDb, getDbPath } from "@/server/db/db";
-import { existsSync } from "node:fs";
-import { homedir } from "node:os";
-import { join } from "node:path";
+import { getDb } from "@/server/db/db";
+import { toNextJsHandler } from "better-auth/next-js";
 
 export const runtime = "nodejs";
 
 export async function GET() {
   const results: Record<string, unknown> = {};
-  const errorLog: string[] = [];
+  const db = getDb();
 
-  const capture = (label: string, fn: () => unknown) => {
-    try {
-      results[label] = fn();
-    } catch (e) {
-      results[label] = `ERROR: ${e}`;
-      errorLog.push(`${label}: ${e}`);
-    }
-  };
+  // 1. Schema check  
+  results.schema = db.prepare("PRAGMA table_info('user')").all();
 
-  const captureAsync = async (label: string, fn: () => Promise<unknown>) => {
-    try {
-      results[label] = await fn();
-    } catch (e) {
-      results[label] = `ERROR: ${e}`;
-      errorLog.push(`${label}: ${e}`);
-    }
-  };
+  // 2. Check if there's a user count  
+  const count = (db.prepare("SELECT COUNT(*) as n FROM \"user\"").get() as { n: number }).n;
+  results.user_count = count;
 
-  capture("db_path", getDbPath());
-  capture("home", homedir());
-  capture("DATA_DIR", join(homedir(), ".notfair-cmo"));
-  capture("dir_exists", existsSync(join(homedir(), ".notfair-cmo")));
-  capture("db_exists", existsSync(getDbPath()));
+  // 3. Clean up any test users from earlier tests
+  db.prepare("DELETE FROM \"user\" WHERE email LIKE 'test_%@example.com' OR email LIKE 'direct_%@test.com' OR name = 'direct_test' OR email = 'test@example.com'").run();
+  results.cleaned_up = true;
 
-  await captureAsync("ensureAuthSchema", async () => {
-    await ensureAuthSchema();
-    return "ok";
-  });
+  // 4. Check the Better Auth handler with a mock request
+  try {
+    const handler = toNextJsHandler(auth);
+    const testEmail = `test_${Date.now()}@example.com`;
+    
+    const req = new Request("http://localhost:3326/api/auth/sign-up/email", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: "Debug User",
+        email: testEmail,
+        password: "Debug123!",
+        confirmPassword: "Debug123!",
+      }),
+    });
 
-  await captureAsync("auth_context", async () => {
-    const ctx = await auth.$context;
-    return { hasAdapter: !!ctx.adapter, hasRateLimit: !!ctx.rateLimit };
-  });
+    const resp = await handler.POST(req);
+    results.better_auth_status = resp.status;
+    results.better_auth_body = await resp.text().catch(() => "(empty)");
+    results.better_auth_headers = Object.fromEntries(resp.headers.entries());
+  } catch (e) {
+    results.better_auth_error = String(e);
+  }
 
-  capture("db_test", () => {
-    const row = getDb().prepare("SELECT COUNT(*) AS n FROM user").get();
-    return row;
-  });
-
-  // Try to create a user directly
-  await captureAsync("direct_user_create", async () => {
-    const db = getDb();
-    const id = crypto.randomUUID();
-    const now = new Date().toISOString();
-    db.prepare(`INSERT INTO "user" (id, name, email, emailVerified, createdAt, updatedAt, role)
-      VALUES (?, ?, ?, 0, ?, ?, 'admin')`).run(id, "direct_test", `direct_${Date.now()}@test.com`, now, now);
-    return { id, email: "direct_...@test.com" };
-  });
-
+  // 5. Check env AFTER loading
   results.env = {
-    BETTER_AUTH_URL: process.env.BETTER_AUTH_URL ? "set" : "missing",
-    BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET ? "set" : "missing",
+    BETTER_AUTH_URL: process.env.BETTER_AUTH_URL || "(unset)",
+    HAS_SECRET: !!process.env.BETTER_AUTH_SECRET,
     NODE_ENV: process.env.NODE_ENV,
-    DATABASE_URL: process.env.DATABASE_URL ? "set" : "missing",
   };
 
-  if (errorLog.length > 0) results.errors = errorLog;
   return NextResponse.json(results);
 }
