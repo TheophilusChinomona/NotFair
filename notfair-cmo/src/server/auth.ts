@@ -49,20 +49,59 @@ type DatabaseConfig =
   | { db: Pool; type: "postgres" }
   | { db: Database.Database; type: "sqlite" };
 
+// Auth tables DDL — run BEFORE betterAuth() so the adapter sees the schema
+// at initialization time, not after the fact.
+const AUTH_DDL: string[] = [
+  `CREATE TABLE IF NOT EXISTS "user" (
+    id TEXT PRIMARY KEY, name TEXT NOT NULL, email TEXT NOT NULL UNIQUE,
+    "emailVerified" INTEGER NOT NULL DEFAULT 0, image TEXT,
+    "createdAt" TEXT NOT NULL, "updatedAt" TEXT NOT NULL,
+    role TEXT DEFAULT 'user', banned INTEGER DEFAULT 0,
+    "banReason" TEXT, "banExpires" INTEGER
+  )`,
+  `CREATE TABLE IF NOT EXISTS "session" (
+    id TEXT PRIMARY KEY, "expiresAt" TEXT NOT NULL, token TEXT NOT NULL UNIQUE,
+    "createdAt" TEXT NOT NULL, "updatedAt" TEXT NOT NULL,
+    "ipAddress" TEXT, "userAgent" TEXT,
+    "userId" TEXT NOT NULL REFERENCES "user"(id) ON DELETE CASCADE
+  )`,
+  `CREATE TABLE IF NOT EXISTS "account" (
+    id TEXT PRIMARY KEY, "accountId" TEXT NOT NULL,
+    "providerId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+    "accessToken" TEXT, "refreshToken" TEXT, "idToken" TEXT,
+    "expiresAt" TEXT, "password" TEXT,
+    "createdAt" TEXT NOT NULL, "updatedAt" TEXT NOT NULL
+  )`,
+  `CREATE TABLE IF NOT EXISTS "verification" (
+    id TEXT PRIMARY KEY, identifier TEXT NOT NULL, value TEXT NOT NULL,
+    "expiresAt" TEXT NOT NULL, "createdAt" TEXT, "updatedAt" TEXT
+  )`,
+];
+
+function ensureTables(db: Database.Database): void {
+  for (const ddl of AUTH_DDL) {
+    try { db.exec(ddl); } catch { /* table may already exist */ }
+  }
+}
+
 const databaseConfig: DatabaseConfig = isPostgres
   ? { db: new Pool({ connectionString: dbUrl }), type: "postgres" }
   : (() => {
       if (!existsSync(DEFAULT_DATA_DIR)) {
         mkdirSync(DEFAULT_DATA_DIR, { recursive: true, mode: 0o700 });
       }
-      return { db: new Database(DB_PATH), type: "sqlite" } satisfies DatabaseConfig;
+      const sqliteDb = new Database(DB_PATH);
+      sqliteDb.pragma("journal_mode = WAL");
+      sqliteDb.pragma("foreign_keys = ON");
+      sqliteDb.pragma("busy_timeout = 5000");
+      ensureTables(sqliteDb);
+      return { db: sqliteDb, type: "sqlite" } satisfies DatabaseConfig;
     })();
 
 export const auth = betterAuth({
   database: databaseConfig,
-  emailAndPassword: {
-    enabled: true,
-  },
+  emailAndPassword: { enabled: true },
   secret: resolveAuthSecret(),
   baseURL: process.env.BETTER_AUTH_URL,
   trustedOrigins: [
@@ -72,104 +111,7 @@ export const auth = betterAuth({
   plugins: [admin()],
   databaseHooks: {},
 } satisfies BetterAuthOptions);
-
-const AUTH_TABLES_DDL = [
-  `CREATE TABLE IF NOT EXISTS "user" (
-    id TEXT PRIMARY KEY,
-    name TEXT NOT NULL,
-    email TEXT NOT NULL UNIQUE,
-    "emailVerified" INTEGER NOT NULL DEFAULT 0,
-    image TEXT,
-    "createdAt" TEXT NOT NULL,
-    "updatedAt" TEXT NOT NULL,
-    role TEXT DEFAULT 'user',
-    banned INTEGER DEFAULT 0,
-    "banReason" TEXT,
-    "banExpires" INTEGER
-  )`,
-  `CREATE TABLE IF NOT EXISTS "session" (
-    id TEXT PRIMARY KEY,
-    "expiresAt" TEXT NOT NULL,
-    token TEXT NOT NULL UNIQUE,
-    "createdAt" TEXT NOT NULL,
-    "updatedAt" TEXT NOT NULL,
-    "ipAddress" TEXT,
-    "userAgent" TEXT,
-    "userId" TEXT NOT NULL REFERENCES "user"(id) ON DELETE CASCADE
-  )`,
-  `CREATE TABLE IF NOT EXISTS "account" (
-    id TEXT PRIMARY KEY,
-    "accountId" TEXT NOT NULL,
-    "providerId" TEXT NOT NULL,
-    "userId" TEXT NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
-    "accessToken" TEXT,
-    "refreshToken" TEXT,
-    "idToken" TEXT,
-    "expiresAt" TEXT,
-    "password" TEXT,
-    "createdAt" TEXT NOT NULL,
-    "updatedAt" TEXT NOT NULL
-  )`,
-  `CREATE TABLE IF NOT EXISTS "verification" (
-    id TEXT PRIMARY KEY,
-    identifier TEXT NOT NULL,
-    value TEXT NOT NULL,
-    "expiresAt" TEXT NOT NULL,
-    "createdAt" TEXT,
-    "updatedAt" TEXT
-  )`,
-];
-
-const ADMIN_COLUMNS: { name: string; ddl: string }[] = [
-  { name: "role",           ddl: `ALTER TABLE "user" ADD COLUMN role TEXT DEFAULT 'user'` },
-  { name: "banned",         ddl: `ALTER TABLE "user" ADD COLUMN banned INTEGER DEFAULT 0` },
-  { name: "banReason",      ddl: `ALTER TABLE "user" ADD COLUMN "banReason" TEXT` },
-  { name: "banExpires",     ddl: `ALTER TABLE "user" ADD COLUMN "banExpires" INTEGER` },
-];
-
-let _schemaReady: Promise<void> | null = null;
-
-function ensureAdminColumns(): void {
-  if (isPostgres) {
-    // PostgreSQL — query information_schema
-    const cols = getDb().prepare(
-      "SELECT column_name FROM information_schema.columns WHERE table_name = 'user'",
-    ).all() as { column_name: string }[];
-    const existingCols = new Set(cols.map((c) => c.column_name));
-    for (const col of ADMIN_COLUMNS) {
-      if (!existingCols.has(col.name)) {
-        getDb().exec(col.ddl);
-      }
-    }
-  } else {
-    // SQLite — PRAGMA table_info
-    const cols = getDb().prepare("PRAGMA table_info('user')").all() as { name: string }[];
-    const existingCols = new Set(cols.map((c) => c.name));
-    for (const col of ADMIN_COLUMNS) {
-      if (!existingCols.has(col.name)) {
-        getDb().exec(col.ddl);
-      }
-    }
-  }
-}
-
-/** Run Better-Auth schema migrations idempotently (once per process). */
+/** Ensure Better Auth context is initialized (tables already created at module init). */
 export function ensureAuthSchema(): Promise<void> {
-  if (!_schemaReady) {
-    _schemaReady = auth.$context.then(async (ctx) => {
-      try {
-        await ctx.runMigrations();
-      } catch {
-        for (const ddl of AUTH_TABLES_DDL) {
-          try {
-            getDb().exec(ddl);
-          } catch {
-            // table may already exist — ignore
-          }
-        }
-        ensureAdminColumns();
-      }
-    });
-  }
-  return _schemaReady;
+  return auth.$context.then(() => {});
 }
