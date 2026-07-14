@@ -70,17 +70,7 @@ export const auth = betterAuth({
     ...(process.env.BETTER_AUTH_URL ? [process.env.BETTER_AUTH_URL] : []),
   ],
   plugins: [admin()],
-  databaseHooks: {
-    user: {
-      create: {
-        before: async (user) => {
-          const row = getDb().prepare('SELECT COUNT(*) AS n FROM "user"').get() as { n: number };
-          if (row.n > 0) return false;
-          return { data: { ...user, role: "admin" } };
-        },
-      },
-    },
-  },
+  databaseHooks: {},
 } satisfies BetterAuthOptions);
 
 const AUTH_TABLES_DDL = [
