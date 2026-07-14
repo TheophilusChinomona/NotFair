@@ -1,33 +1,56 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/server/auth";
+import { getDb } from "@/server/db/db";
+import { toNextJsHandler } from "better-auth/next-js";
 
 export const runtime = "nodejs";
 
 export async function GET() {
-  // Check all env vars that Better Auth uses
-  const vars = {
-    BETTER_AUTH_URL: process.env.BETTER_AUTH_URL,
-    BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET ? "(set)" : "(unset)",
-    NODE_ENV: process.env.NODE_ENV,
-    NEXT_PUBLIC_MCP_BASE_URL: process.env.NEXT_PUBLIC_MCP_BASE_URL,
-  };
+  const results: Record<string, unknown> = {};
 
-  // Check if Better Auth was initialized with the right baseURL
-  // (we can check this by reading the config from the auth object)
-  let configInfo: Record<string, unknown> = {};
   try {
-    const ctx = await auth.$context;
-    configInfo = {
-      hasAdapter: !!ctx.adapter,
-      adapterName: ctx.adapter?.constructor?.name || "unknown",
-      options: {
-        baseURL: (ctx as any).options?.baseURL,
-        secret: (ctx as any).options?.secret ? "(set)" : "(unset)",
-      },
-    };
+    const db = getDb();
+    results.user_count = (db.prepare("SELECT COUNT(*) as n FROM \"user\"").get() as { n: number }).n;
+    results.tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name").all().map((r: any) => r.name);
   } catch (e) {
-    configInfo = { error: String(e) };
+    results.db_error = String(e);
   }
 
-  return NextResponse.json({ env: vars, config: configInfo });
+  try {
+    const ctx = await auth.$context;
+    results.has_adapter = !!ctx.adapter;
+    // Try to get internal adapter
+    const internalAdapter = (ctx as any).internalAdapter;
+    results.has_internal_adapter = !!internalAdapter;
+  } catch (e) {
+    results.context_error = String(e);
+  }
+
+  // Try sign-up and catch the actual error
+  try {
+    const handler = toNextJsHandler(auth);
+    const body = JSON.stringify({
+      name: "Debug", email: "debug_" + Date.now() + "@test.com",
+      password: "Debug123!", confirmPassword: "Debug123!",
+    });
+    const req = new Request("http://localhost/api/auth/sign-up/email", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body,
+    });
+    // Try to get the raw error by reading the response
+    const resp = await handler.POST(req);
+    results.signup_status = resp.status;
+    results.signup_body = await resp.text().catch(() => "");
+    results.signup_ok = resp.ok;
+  } catch (e) {
+    results.signup_caught = String(e);
+    if (e instanceof Error) results.signup_stack = (e.stack || "").split("\n").slice(0, 3);
+  }
+
+  results.env = {
+    BETTER_AUTH_URL: process.env.BETTER_AUTH_URL || "(unset)",
+    HAS_SECRET: !!process.env.BETTER_AUTH_SECRET,
+    NODE_ENV: process.env.NODE_ENV,
+  };
+
+  return NextResponse.json(results);
 }
