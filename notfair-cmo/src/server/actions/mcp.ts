@@ -43,6 +43,12 @@ export async function startMcpConnect(input: {
 
   const spec = mcpSpecByKey(project.slug, input.mcp_key);
   if (!spec) return { ok: false, error: `Unknown MCP key: ${input.mcp_key}` };
+  // Self-hosted MCP proxies (Google Ads, Meta Ads, GSC, GBP) don't need
+  // user OAuth — they use service account / API key credentials configured
+  // via env vars. Skip the entire OAuth dance when there's no discovery URL.
+  if (!spec.discovery_url) {
+    return { ok: true, authorize_url: "" };
+  }
 
   let resolved: ResolvedAuthServer;
   try {
@@ -68,7 +74,6 @@ export async function startMcpConnect(input: {
     return { ok: false, error: `Registration failed: ${humanError(err)}` };
   }
 
-  // PKCE — S256 challenge from a 64-byte verifier.
   const code_verifier = base64url(randomBytes(64));
   const code_challenge = base64url(
     createHash("sha256").update(code_verifier).digest(),

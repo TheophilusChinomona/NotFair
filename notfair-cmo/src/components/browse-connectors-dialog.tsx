@@ -145,11 +145,14 @@ function ConnectorTile({
         );
         router.refresh();
         onAdded();
+      if (!connectResult.authorize_url) {
+        // Self-hosted MCP — no OAuth redirect needed
+        toast.success(`Connected ${connector.display_name}`);
+        router.refresh();
+        onAdded();
         setAdding(false);
         return;
       }
-      // Full-page navigation: the authorize URL is on the issuer's
-      // origin, so we can't push() into Next's router.
       window.location.href = connectResult.authorize_url;
     });
   }

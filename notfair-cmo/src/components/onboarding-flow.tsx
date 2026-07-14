@@ -517,6 +517,11 @@ function ConnectStep({ slug }: { slug: string }) {
         setTileBusy(null);
         return;
       }
+      if (!result.authorize_url) {
+        // No OAuth needed (self-hosted MCP with API key credentials)
+        setTileBusy(null);
+        return;
+      }
       window.location.href = result.authorize_url;
     } catch (err) {
       toast.error(err instanceof Error ? err.message : String(err));
