@@ -117,9 +117,6 @@ function ConnectorTile({
       const addResult = await addUserMcpServerAction({
         display_name: connector.display_name,
         resource_url: connector.resource_url,
-        // Force the canonical preset/connector key so adding "NotFair
-        // Google Ads" hits the preset (`notfair-googleads`) rather than
-        // slugifying into a different identifier.
         key: connector.id,
       });
       if (!addResult.ok) {
@@ -127,13 +124,6 @@ function ConnectorTile({
         setAdding(false);
         return;
       }
-      // Chain straight into OAuth so the user only clicks once. The
-      // upcoming full-page redirect is the visible feedback — we
-      // intentionally don't toast a separate "added" success.
-      //
-      // Pass `return_to` so the OAuth callback lands the user back on
-      // the connections page they started from. Without it the callback
-      // falls back to `/`, which bounces to the active project's home.
       const return_to = window.location.pathname + window.location.search;
       const connectResult = await startMcpConnect({
         mcp_key: addResult.key,
@@ -145,8 +135,10 @@ function ConnectorTile({
         );
         router.refresh();
         onAdded();
+        setAdding(false);
+        return;
+      }
       if (!connectResult.authorize_url) {
-        // Self-hosted MCP — no OAuth redirect needed
         toast.success(`Connected ${connector.display_name}`);
         router.refresh();
         onAdded();

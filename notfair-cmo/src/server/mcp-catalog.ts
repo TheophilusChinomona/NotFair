@@ -72,3 +72,35 @@ export const MCP_CATALOG_PRESETS: McpSpec[] = [
     source: "preset",
   },
 ];
+
+export function isPresetKey(key: string): boolean {
+  return MCP_CATALOG_PRESETS.some((p) => p.key === key);
+}
+
+export function getMcpPresets(): McpSpec[] {
+  return MCP_CATALOG_PRESETS;
+}
+
+export function getMcpCatalog(project_slug: string): McpSpec[] {
+  const hidden = new Set(getHiddenMcpPresetKeys(project_slug));
+  const presets = MCP_CATALOG_PRESETS.filter((p) => !hidden.has(p.key));
+  const presetKeys = new Set(presets.map((p) => p.key));
+  const userRows = listUserMcpServers(project_slug)
+    .filter((row) => !presetKeys.has(row.key))
+    .map<McpSpec>((row) => ({
+      key: row.key,
+      display_name: row.display_name,
+      description: row.description,
+      resource_url: row.resource_url,
+      discovery_url: row.discovery_url,
+      source: "user",
+    }));
+  return [...presets, ...userRows];
+}
+
+export function mcpSpecByKey(
+  project_slug: string,
+  key: string,
+): McpSpec | undefined {
+  return getMcpCatalog(project_slug).find((m) => m.key === key);
+}
