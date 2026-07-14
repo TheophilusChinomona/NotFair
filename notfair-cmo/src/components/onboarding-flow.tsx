@@ -459,7 +459,7 @@ const RECOMMENDED_TILES: RecommendedTile[] = [
     mcp_display_name: "Google Analytics MCP",
     description:
       "Analyzes GA4 traffic, channels, and conversions; explains what moved and why.",
-    resource_url: "https://notfair.co/api/mcp/google_analytics",
+    resource_url: mcpUrl("/api/mcp/google_analytics"),
   },
   {
     mcp_key: "notfair-xads",
@@ -467,7 +467,7 @@ const RECOMMENDED_TILES: RecommendedTile[] = [
     agent_badge: "X Ads agent",
     description:
       "Audits X (Twitter) campaigns and line items, tracks spend and engagement.",
-    resource_url: "https://notfair.co/api/mcp/x_ads",
+    resource_url: mcpUrl("/api/mcp/x_ads"),
   },
 ];
 

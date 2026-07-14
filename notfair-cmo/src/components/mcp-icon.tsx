@@ -26,7 +26,7 @@ const PLATFORM_LOGO_BY_MCP_PATH: Record<string, string> = {
 export function platformLogoForResourceUrl(resourceUrl: string): string | null {
   try {
     const url = new URL(resourceUrl);
-    if (brandDomain(url.hostname) !== "notfair.co") return null;
+    if (brandDomain(url.hostname) !== "notfair.co" && url.hostname !== "localhost" && !url.hostname.endsWith("sentiolangley.me") && !url.hostname.endsWith("theochinomona.tech")) return null;
     const match = url.pathname.match(/^\/api\/mcp\/([a-z0-9_]+)\/?$/);
     if (!match) return null;
     return PLATFORM_LOGO_BY_MCP_PATH[match[1]!] ?? null;
