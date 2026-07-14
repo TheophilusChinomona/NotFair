@@ -12,22 +12,14 @@ import { getDb } from "@/server/db/db";
 const DEFAULT_DATA_DIR = process.env.NOTFAIR_CMO_DATA_DIR ?? join(homedir(), ".notfair-cmo");
 const DB_PATH = join(DEFAULT_DATA_DIR, "db.sqlite");
 
-/**
- * Resolve the auth secret:
- * - Production (NODE_ENV=production): MUST be set via env, hard-fail otherwise.
- * - Local dev: mint + persist to a file at DATA_DIR/auth-secret with 0o600 perms.
- */
 function resolveAuthSecret(): string {
   const fromEnv = process.env.BETTER_AUTH_SECRET;
   if (fromEnv && fromEnv.length > 0) {
     return fromEnv;
   }
   if (process.env.NODE_ENV === "production") {
-    throw new Error(
-      "BETTER_AUTH_SECRET is required in production. Set it in the container environment (e.g. .env).",
-    );
+    throw new Error("BETTER_AUTH_SECRET is required in production. Set it in the container environment (e.g. .env).");
   }
-  // Local dev — mint + persist a per-machine secret
   const dataDir = process.env.NOTFAIR_CMO_DATA_DIR ?? join(homedir(), ".notfair-cmo");
   if (!existsSync(dataDir)) {
     mkdirSync(dataDir, { recursive: true, mode: 0o700 });
@@ -45,12 +37,9 @@ function resolveAuthSecret(): string {
 const dbUrl = process.env.DATABASE_URL;
 const isPostgres = dbUrl && (dbUrl.startsWith("postgres://") || dbUrl.startsWith("postgresql://"));
 
-type DatabaseConfig =
-  | { db: Pool; type: "postgres" }
-  | { db: Database.Database; type: "sqlite" };
-
 // Auth tables DDL — run BEFORE betterAuth() so the adapter sees the schema
-// at initialization time, not after the fact.
+// at initialization time, not after the fact. This avoids Kysely caching
+// a schema-less state and then failing on subsequent queries.
 const AUTH_DDL: string[] = [
   `CREATE TABLE IF NOT EXISTS "user" (
     id TEXT PRIMARY KEY, name TEXT NOT NULL, email TEXT NOT NULL UNIQUE,
@@ -85,22 +74,24 @@ function ensureTables(db: Database.Database): void {
   }
 }
 
-const databaseConfig: DatabaseConfig = isPostgres
-  ? { db: new Pool({ connectionString: dbUrl }), type: "postgres" }
-  : (() => {
-      if (!existsSync(DEFAULT_DATA_DIR)) {
-        mkdirSync(DEFAULT_DATA_DIR, { recursive: true, mode: 0o700 });
-      }
-      const sqliteDb = new Database(DB_PATH);
-      sqliteDb.pragma("journal_mode = WAL");
-      sqliteDb.pragma("foreign_keys = ON");
-      sqliteDb.pragma("busy_timeout = 5000");
-      ensureTables(sqliteDb);
-      return { db: sqliteDb, type: "sqlite" } satisfies DatabaseConfig;
-    })();
+// Create database, initialize tables, then pass directly to betterAuth.
+let db: Pool | Database.Database;
+if (isPostgres) {
+  db = new Pool({ connectionString: dbUrl! });
+} else {
+  if (!existsSync(DEFAULT_DATA_DIR)) {
+    mkdirSync(DEFAULT_DATA_DIR, { recursive: true, mode: 0o700 });
+  }
+  const sqliteDb = new Database(DB_PATH);
+  sqliteDb.pragma("journal_mode = WAL");
+  sqliteDb.pragma("foreign_keys = ON");
+  sqliteDb.pragma("busy_timeout = 5000");
+  ensureTables(sqliteDb);
+  db = sqliteDb;
+}
 
 export const auth = betterAuth({
-  database: databaseConfig,
+  database: db,
   emailAndPassword: { enabled: true },
   secret: resolveAuthSecret(),
   baseURL: process.env.BETTER_AUTH_URL,
@@ -109,9 +100,8 @@ export const auth = betterAuth({
     ...(process.env.BETTER_AUTH_URL ? [process.env.BETTER_AUTH_URL] : []),
   ],
   plugins: [admin()],
-  databaseHooks: {},
 } satisfies BetterAuthOptions);
-/** Ensure Better Auth context is initialized (tables already created at module init). */
+
 export function ensureAuthSchema(): Promise<void> {
   return auth.$context.then(() => {});
 }
