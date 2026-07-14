@@ -12,6 +12,8 @@ RUN pnpm install --frozen-lockfile
 FROM base AS builder
 ARG BETTER_AUTH_SECRET=placeholder-build-only
 ENV BETTER_AUTH_SECRET=$BETTER_AUTH_SECRET
+ARG NEXT_PUBLIC_MCP_BASE_URL=http://localhost:3326
+ENV NEXT_PUBLIC_MCP_BASE_URL=$NEXT_PUBLIC_MCP_BASE_URL
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .

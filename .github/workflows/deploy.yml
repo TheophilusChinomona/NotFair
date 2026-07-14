@@ -36,6 +36,7 @@ jobs:
           tags: ${{ env.IMAGE }}:latest,${{ env.IMAGE }}:${{ github.sha }}
           build-args: |
             BETTER_AUTH_SECRET=${{ secrets.BETTER_AUTH_SECRET }}
+            NEXT_PUBLIC_MCP_BASE_URL=https://marketing.sentiolangley.me
           cache-from: type=gha
           cache-to: type=gha,mode=max
 

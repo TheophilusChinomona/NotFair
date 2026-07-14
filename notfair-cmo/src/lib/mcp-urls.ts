@@ -1,14 +1,21 @@
 /**
  * Returns the base URL for MCP API endpoints.
  *
- * In production, set NEXT_PUBLIC_MCP_BASE_URL to your app's public origin
- * (e.g. "https://cmo.example.com"). Falls back to BETTER_AUTH_URL, then
- * to "http://localhost:3326" for local development.
+ * Since MCP routes are served at /api/mcp/* on the SAME origin as the app,
+ * we use window.location.origin on the client side and fall back to localhost
+ * for server-side / SSR. No build-time env var needed.
+ *
+ * For server-side rendering, this reads BETTER_AUTH_URL from the env, or
+ * falls back to localhost:3326 for local development.
  */
 export function getMcpBaseUrl(): string {
+  if (typeof window !== "undefined") {
+    return window.location.origin;
+  }
   return (
     process.env.NEXT_PUBLIC_MCP_BASE_URL ||
     process.env.NEXT_PUBLIC_BETTER_AUTH_URL ||
+    process.env.BETTER_AUTH_URL ||
     "http://localhost:3326"
   );
 }
